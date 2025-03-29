@@ -2,7 +2,7 @@ from datetime import datetime
 import logging
 from typing import List, Optional
 from agents import Agent, Runner
-from app.supabase.pgvector import find_similar_knowledge, find_similar_slang, store_user_knowledge, store_user_slang
+from app.supabase.pgvector import find_similar_knowledge, find_similar_slang, store_user_slang
 from pydantic import BaseModel
 
 

@@ -1,10 +1,9 @@
 import asyncio
-from agents import Agent, Runner, function_tool, trace, ItemHelpers, RunContextWrapper, WebSearchTool, FileSearchTool
+from agents import Agent, Runner, function_tool, WebSearchTool, FileSearchTool
 
 from app.psychology.chinese_zodiac import get_chinese_zodiac
 from app.psychology.ocean_analysis import OceanResponse
 from app.supabase.supabase_mbti import MBTIResponse
-from pydantic import BaseModel
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
 from app.psychology.western_zodiac import get_western_zodiac
 

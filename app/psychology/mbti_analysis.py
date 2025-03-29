@@ -1,7 +1,7 @@
 import logging
 from pydantic import BaseModel
 from app.supabase.supabase_mbti import MBTI, MBTIRepository
-from agents import Agent, Runner, function_tool
+from agents import Agent, Runner
 
 
 logging.basicConfig(level=logging.INFO)
