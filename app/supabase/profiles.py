@@ -164,6 +164,11 @@ class ProfileRepository:
     def deduct_credits(self, user_id: str, amount: int) -> bool:
         """Atomically deduct credits from user's balance"""
         try:
+            # make sure the amount is positive
+            if amount < 0:
+                logging.error(f"Amount to deduct is negative for user {user_id}")
+                return False
+            
             current_credits = self.get_user_credit(user_id)
             
             if current_credits is None or current_credits < amount:
@@ -200,6 +205,11 @@ class ProfileRepository:
         # This should increment the user's credits by the given amount.
         # Implement according to your Supabase client usage.
         try:
+            # make sure the amount is positive
+            if additional_credits < 0:
+                logging.error(f"Amount to increment is negative for user {user_id}")
+                return False
+            
             # Retrieve the current credits (example using a synchronous call)
             current = self.get_user_credit(user_id)
             new_total = current + additional_credits
