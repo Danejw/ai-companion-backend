@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Astra</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            /* Refined color palette */
+            --bg-dark: #0B1622;
+            --bg-darker: #070E16;
+            --accent-1: #6366f1;
+            --accent-2: #2dd4bf;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --gradient: linear-gradient(135deg, var(--accent-1) 0%, var(--accent-2) 100%);
+            --surface: rgba(255, 255, 255, 0.03);
+            --shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
+            --message-bg: #111927;
+            --hover-bg: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Poppins', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            width: 280px;
+            background: var(--bg-darker);
+            border-right: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .nav-section {
+            padding: 1.5rem;
+        }
+
+        .nav-section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .brand-logo {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            font-weight: 600;
+            color: white;
+        }
+
+        .brand-name {
+            font-size: 1.5rem;
+            font-weight: 600;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .user-profile {
+            text-align: center;
+            padding: 2rem;
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            position: relative;
+            background: var(--gradient);
+            padding: 2px;
+        }
+
+        .user-avatar-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: var(--bg-darker);
+            display: grid;
+            place-items: center;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            border-radius: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .nav-item:hover {
+            background: var(--surface);
+            color: var(--text-primary);
+        }
+
+        #main-content {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        #authContainer {
+            max-width: 440px;
+            margin: auto;
+            padding: 3rem;
+            background: var(--bg-darker);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: var(--shadow);
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 1rem;
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: 'Poppins', sans-serif;
+            margin-bottom: 1rem;
+        }
+
+        .auth-button {
+            width: 100%;
+            padding: 1rem;
+            background: var(--gradient);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #chatContainer {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .message-container {
+            height: calc(100vh - 90px);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            max-width: 85%;
+            padding: 0.75rem;
+            border-radius: 8px;
+            transition: background-color 0.2s ease;
+        }
+
+        .message:hover {
+            background: var(--hover-bg);
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--gradient);
+            flex-shrink: 0;
+            display: grid;
+            place-items: center;
+            font-weight: 600;
+        }
+
+        .message-content-wrapper {
+            flex: 1;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .message-sender {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+
+        .message-text {
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .message-bubble {
+            padding: 1.25rem;
+            border-radius: 20px;
+            position: relative;
+            backdrop-filter: blur(12px);
+        }
+
+        .user-message {
+            margin-left: auto;
+        }
+
+        .user-message .message-bubble {
+            background: var(--gradient);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px -8px rgba(139, 92, 246, 0.3);
+        }
+
+        .astra-message .message-bubble {
+            background: var(--surface);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .input-container {
+            position: sticky;
+            bottom: 0;
+            padding: 1.25rem;
+            background: var(--bg-dark);
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .input-wrapper {
+            background: var(--message-bg);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #messageInput {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            padding: 0.5rem;
+            flex: 1;
+        }
+
+        #messageInput:focus {
+            outline: none;
+        }
+
+        #sendButton {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--gradient);
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        #sendButton:hover {
+            transform: scale(1.05);
+        }
+
+        .material-icons-round {
+            font-size: 24px;
+            color: white;
+        }
+
+        .message-status {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-1);
+        }
+
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0.75rem;
+            background: var(--message-bg);
+            border-radius: 8px;
+            margin: 0.5rem 0;
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+
+        @keyframes typingBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <div class="brand">
+                <div class="brand-logo">A</div>
+                <div class="brand-name">Astra</div>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <h3 class="nav-section-title">Profile</h3>
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <div class="user-avatar-inner">
+                        <span class="material-icons-round">person</span>
+                    </div>
+                </div>
+                <h3 id="userName">Guest User</h3>
+                <p style="color: var(--text-secondary);" id="userStatus">Online</p>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <h3 class="nav-section-title">Navigation</h3>
+            <nav>
+                <button class="nav-item">
+                    <span class="material-icons-round">settings</span>
+                    Settings
+                </button>
+                <button class="nav-item">
+                    <span class="material-icons-round">history</span>
+                    History
+                </button>
+                <button class="nav-item" onclick="logout()">
+                    <span class="material-icons-round">logout</span>
+                    Logout
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <div id="authContainer">
+            <h2 style="margin-bottom: 2rem; text-align: center;">Welcome to Astra</h2>
+            <input type="email" id="email" placeholder="Email" class="auth-input">
+            <input type="password" id="password" placeholder="Password" class="auth-input">
+            <button onclick="login()" class="auth-button" style="margin-bottom: 1rem;">Login</button>
+            <button onclick="signUp()" class="auth-button" style="background: var(--surface);">Sign Up</button>
+            <p id="statusMessage" style="color: var(--accent-1); text-align: center; margin-top: 1rem;"></p>
+        </div>
+
+        <div id="chatContainer">
+            <div class="message-container" id="messageContainer"></div>
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="messageInput" placeholder="Message Astra...">
+                    <button id="sendButton" onclick="sendMessage()">
+                        <span class="material-icons-round">send</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let supabase;
+        let currentUser = null;
+
+        async function loadConfig() {
+            try {
+                const response = await fetch("http://localhost:8000/config");
+                const config = await response.json();
+                supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+                
+                supabase.auth.onAuthStateChange((event, session) => {
+                    if (session?.user) {
+                        currentUser = session.user;
+                        showChatInterface();
+                    } else {
+                        showAuthInterface();
+                    }
+                });
+            } catch (error) {
+                console.error("Error initializing Supabase:", error);
+            }
+        }
+
+        function showChatInterface() {
+            document.getElementById('authContainer').style.display = 'none';
+            document.getElementById('chatContainer').style.display = 'flex';
+            loadMessageHistory();
+        }
+
+        function showAuthInterface() {
+            document.getElementById('authContainer').style.display = 'block';
+            document.getElementById('chatContainer').style.display = 'none';
+        }
+
+        async function signUp() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                updateStatusMessage(error.message);
+            } else {
+                updateStatusMessage('Check your email for verification!');
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                updateStatusMessage(error.message);
+            }
+        }
+
+        function showTypingIndicator() {
+            const container = document.getElementById('messageContainer');
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = `
+                <div class="message-avatar">A</div>
+                <div class="typing-dots">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot" style="animation-delay: 0.2s"></div>
+                    <div class="typing-dot" style="animation-delay: 0.4s"></div>
+                </div>
+            `;
+            container.appendChild(indicator);
+            container.scrollTo({ 
+                top: container.scrollHeight, 
+                behavior: 'smooth' 
+            });
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            appendMessage(message, 'user');
+            input.value = '';
+            
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch("http://localhost:8000/orchestration/convo-lead", {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${await getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                document.querySelector('.typing-indicator').remove();
+                const result = await response.json();
+                appendMessage(result.final_output, 'astra');
+            } catch (error) {
+                document.querySelector('.typing-indicator').remove();
+                appendMessage('✨ Let me try that again... Something went wrong.', 'astra');
+                console.error('Error:', error);
+            }
+        }
+
+        async function getAuthToken() {
+            const { data } = await supabase.auth.getSession();
+            return data.session.access_token;
+        }
+
+        function appendMessage(text, sender) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString([], { 
+                hour: '2-digit', 
+                minute: '2-digit'
+            });
+            
+            const container = document.getElementById('messageContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}-message`;
+            
+            const initial = sender === 'astra' ? 'A' : 'Y';
+            
+            messageDiv.innerHTML = `
+                <div class="message-avatar">
+                    ${initial}
+                </div>
+                <div class="message-content-wrapper">
+                    <div class="message-header">
+                        <span class="message-sender">${sender === 'astra' ? 'Astra' : 'You'}</span>
+                        <span class="message-time">${timeString}</span>
+                    </div>
+                    <div class="message-text">${text}</div>
+                    <div class="message-status">
+                        ${sender === 'user' ? '<div class="status-dot"></div> Sent' : ''}
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+            container.scrollTo({ 
+                top: container.scrollHeight, 
+                behavior: 'smooth' 
+            });
+        }
+
+        async function loadMessageHistory() {
+            try {
+                const token = await getAuthToken();
+                if (!token) return;
+                
+                // Initialize with a welcome message instead of loading history
+                appendMessage("Hello! I'm Astra. How can I help you today?", 'astra');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Handle Enter key
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Initialize
+        loadConfig();
+
+        // Add these premium features
+        async function loadUserProfile() {
+            const { data } = await supabase.auth.getUser();
+            document.getElementById('userName').textContent = data.user.email;
+        }
+
+        function showSettings() {
+            // Implementation for settings modal
+        }
+
+        function showHistory() {
+            // Implementation for conversation history
+        }
+
+        // Add floating action button
+        function addFAB() {
+            const fab = document.createElement('button');
+            fab.id = 'fab';
+            fab.innerHTML = '+';
+            document.body.appendChild(fab);
+        }
+
+        // Add logout functionality
+        async function logout() {
+            try {
+                await supabase.auth.signOut();
+                showAuthInterface();
+            } catch (error) {
+                console.error('Error logging out:', error);
+            }
+        }
+
+        // Update status message function
+        function updateStatusMessage(message) {
+            const statusElement = document.getElementById('statusMessage');
+            statusElement.textContent = message;
+            setTimeout(() => {
+                statusElement.textContent = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

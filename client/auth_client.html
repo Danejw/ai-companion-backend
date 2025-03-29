@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login & Sign Up</title>
+
+    <!-- ✅ Load Supabase SDK First -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        /* Make certain containers span full width */
+        .container.full-width {
+            grid-column: 1 / -1;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #2c3e50;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="grid-container">
+        <!-- Login container - full width -->
+        <div class="container full-width">
+            <h2>Login / Sign Up</h2>
+            <input type="email" style="width: 95%;" id="email" placeholder="Email">
+            <input type="password" style="width: 95%;" id="password" placeholder="Password">
+            <button onclick="signUp()">Sign Up</button>
+            <button onclick="login()">Login</button>
+            <p class="message" id="statusMessage"></p>
+        </div>
+
+        <!-- Configuration container -->
+        <div class="container">
+            <h2>Configuration</h2>
+            <button onclick="loadConfig()">Load Config & Init Supabase</button>
+            <p class="message" id="configStatus"></p>
+        </div>
+
+        <!-- MBTI Analysis container -->
+        <div class="container">
+            <h2>Test MBTI Analysis</h2>
+            <button onclick="testMBTIAnalysis()">Run MBTI Analysis</button>
+            <p class="message" id="mbtiResponse"></p>
+        </div>
+
+        <!-- OCEAN Analysis container -->
+        <div class="container">
+            <h2>Test OCEAN Analysis</h2>
+            <button onclick="testOCEANAnalysis()">Run OCEAN Analysis</button>
+            <p class="message" id="oceanResponse"></p>
+        </div>
+
+        <!-- Orchestration container -->
+        <div class="container">
+            <h2>Orchestration</h2>
+            <input type="text" style="width: 95%;" id="orchestrationMessage" placeholder="Enter your message">
+            <button onclick="runOrchestration()">Start Orchestration</button>
+            <p class="message" id="orchestrationResponse"></p>
+        </div>
+
+        <!-- Conversation Lead container -->
+        <div class="container">
+            <h2>Conversation Lead</h2>
+            <input type="text" style="width: 95%;" id="convoMessage" placeholder="Enter your message">
+            <button onclick="startConversation()">Send Message</button>
+            <p class="message" id="convoResponse"></p>
+        </div>
+
+        <!-- Knowledge Query container -->
+        <div class="container">
+            <h2>Knowledge Query</h2>
+            <input type="text" style="width: 95%;" id="knowledgeQuery" placeholder="Enter your search query">
+            <button onclick="querySimilarKnowledge()">Search Similar Knowledge</button>
+            <p class="message" id="knowledgeResponse"></p>
+        </div>
+
+        <!-- Slang Extraction Test Container -->
+        <div class="container">
+            <h2>Test Slang Extraction</h2>
+            <input type="text" style="width: 95%;" id="slangMessage" rows="4" placeholder="Enter a message with slang..."></textarea>
+            <button onclick="testSlangExtraction()">Extract Slang</button>
+            <p class="message" id="slangResponse"></p>
+        </div>
+
+        <!-- Slang Similarity Query Container -->
+        <div class="container">
+            <h2>Search Similar Slang</h2>
+            <input type="text" style="width: 95%;" id="slangQuery" placeholder="Enter a slang query...">
+            <button onclick="querySimilarSlang()">Search Similar Slang</button>
+            <p class="message" id="slangQueryResponse"></p>
+        </div>
+
+        <!-- Credit Deduction Test Container -->
+        <div class="container">
+            <h2>Test Credit Deduction</h2>
+            <input type="number" style="width: 95%;" id="deductAmount" placeholder="Enter credit amount to deduct">
+            <button onclick="testCreditDeduction()">Deduct Credits</button>
+            <p class="message" id="deductionResponse"></p>
+        </div>
+    </div>
+
+    <!-- ✅ Ensure this script runs after Supabase SDK is loaded -->
+<script>
+    let supabase;
+
+    async function loadConfig() {
+        try {
+            console.log("🔄 Fetching Supabase config...");
+
+            let response = await fetch("http://localhost:8000/config");
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+
+            let config = await response.json();
+            console.log("✅ Supabase Config Received:", config);
+
+            if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
+                throw new Error("❌ Missing Supabase credentials from backend.");
+            }
+
+            // ✅ Initialize Supabase Client
+            supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+            console.log("✅ Supabase Initialized Successfully:", supabase);
+
+            // ✅ Check if Auth module is available
+            if (!supabase.auth) {
+                throw new Error("❌ Supabase Auth module is missing!");
+            }
+
+        } catch (error) {
+            console.error("❌ Error initializing Supabase:", error);
+        }
+    }
+
+    async function signUp() {
+        if (!supabase) {
+            console.error("❌ Supabase is not initialized yet.");
+            return;
+        }
+
+        let email = document.getElementById("email").value;
+        let password = document.getElementById("password").value;
+
+        let { data, error } = await supabase.auth.signUp({ email, password });
+
+        if (error) {
+            document.getElementById("statusMessage").innerText = "Error: " + error.message;
+        } else {
+            document.getElementById("statusMessage").innerText = "✅ Sign-up successful! Check your email.";
+        }
+    }
+
+    async function login() {
+        if (!supabase) {
+            console.error("❌ Supabase is not initialized yet.");
+            return;
+        }
+
+        let email = document.getElementById("email").value;
+        let password = document.getElementById("password").value;
+
+        let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+            document.getElementById("statusMessage").innerText = "Error: " + error.message;
+        } else {
+            localStorage.setItem("authToken", data.session.access_token);
+            document.getElementById("statusMessage").innerText = "✅ Login successful!";
+        }
+    }
+
+    // ✅ Ensure Supabase is initialized before allowing login/signup
+    window.addEventListener("load", async () => {
+        await loadConfig();
+    });
+
+    async function getAuthToken() {
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data.session) {
+            console.error("❌ User is not authenticated:", error);
+            document.getElementById("apiResponse").innerText = "Error: Please log in first.";
+            return null;
+        }
+        return data.session.access_token;
+    }
+
+
+     // ✅ Function to test MBTI analysis endpoint
+        async function testMBTIAnalysis() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            try {
+                let response = await fetch("http://localhost:8000/mbti/mbti-analyze", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "your_user_id",
+                        message: "I enjoy deep conversations but also need time alone to recharge."
+                    })
+                });
+
+                let result = await response.json();
+                console.log("🔹 MBTI Analysis Response:", result);
+                document.getElementById("mbtiResponse").innerText = JSON.stringify(result, null, 2);
+
+            } catch (err) {
+                console.error("❌ Error calling MBTI analysis:", err);
+                document.getElementById("mbtiResponse").innerText = "Error accessing MBTI analysis.";
+            }
+        }
+
+        // ✅ Function to test OCEAN analysis endpoint
+        async function testOCEANAnalysis() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            try {
+                let response = await fetch("http://localhost:8000/ocean/ocean-analyze", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        user_id: "your_user_id",
+                        message: "I prefer structure and organization, but I also value creativity."
+                    })
+                });
+
+                let result = await response.json();
+                console.log("🔹 OCEAN Analysis Response:", result);
+                document.getElementById("oceanResponse").innerText = JSON.stringify(result, null, 2);
+
+            } catch (err) {
+                console.error("❌ Error calling OCEAN analysis:", err);
+                document.getElementById("oceanResponse").innerText = "Error accessing OCEAN analysis.";
+            }
+        }
+
+        async function runOrchestration() {
+                let token = await getAuthToken();
+                if (!token) return;
+
+                let message = document.getElementById("orchestrationMessage").value;
+                if (!message) {
+                    document.getElementById("orchestrationResponse").innerText = "Please enter a message.";
+                    return;
+                }
+
+                try {
+                    let response = await fetch("http://localhost:8000/orchestration/orchestration", {
+                        method: "POST",
+                        headers: {
+                            "Authorization": "Bearer " + token,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            message: message
+                        })
+                    });
+
+                    let result = await response.json();
+                    console.log("🔹 Orchestration Response:", result);
+                    document.getElementById("orchestrationResponse").innerText = JSON.stringify(result, null, 2);
+
+                } catch (err) {
+                    console.error("❌ Error calling orchestration:", err);
+                    document.getElementById("orchestrationResponse").innerText = "Error accessing orchestration.";
+                }
+            }
+
+        async function startConversation() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            let message = document.getElementById("convoMessage").value;
+            if (!message) {
+                document.getElementById("convoResponse").innerText = "Please enter a message.";
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:8000/orchestration/convo-lead", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: message
+                    })
+                });
+
+                let result = await response.json();
+                console.log("🔹 Conversation Response:", result);
+                document.getElementById("convoResponse").innerText = JSON.stringify(result, null, 2);
+                
+                // Clear the input field after sending
+                document.getElementById("convoMessage").value = "";
+
+            } catch (err) {
+                console.error("❌ Error in conversation:", err);
+                document.getElementById("convoResponse").innerText = "Error in conversation.";
+            }
+        }
+
+        async function querySimilarKnowledge() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            let query = document.getElementById("knowledgeQuery").value;
+            if (!query) {
+                document.getElementById("knowledgeResponse").innerText = "Please enter a search query.";
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:8000/knowledge/retrieve-knowledge", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        message: query
+                    })
+                });
+
+                let result = await response.json();
+                console.log("🔹 Similar Knowledge Response:", result);
+                document.getElementById("knowledgeResponse").innerText = JSON.stringify(result, null, 2);
+                
+                // Clear the input field after sending
+                document.getElementById("knowledgeQuery").value = "";
+
+            } catch (err) {
+                console.error("❌ Error querying knowledge:", err);
+                document.getElementById("knowledgeResponse").innerText = "Error querying knowledge.";
+            }
+        }
+
+        // Function to test the Slang Extraction endpoint
+        async function testSlangExtraction() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            let message = document.getElementById("slangMessage").value;
+            if (!message) {
+                document.getElementById("slangResponse").innerText = "Please enter a message.";
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:8000/slang/extract-slang", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                let result = await response.json();
+                console.log("🔹 Slang Extraction Response:", result);
+                document.getElementById("slangResponse").innerText = JSON.stringify(result, null, 2);
+            } catch (err) {
+                console.error("❌ Error extracting slang:", err);
+                document.getElementById("slangResponse").innerText = "Error extracting slang.";
+            }
+        }
+
+        // Function to query similar slang from the vector store
+        async function querySimilarSlang() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            let query = document.getElementById("slangQuery").value;
+            if (!query) {
+                document.getElementById("slangQueryResponse").innerText = "Please enter a slang query.";
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:8000/slang/retrieve-slang", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ message: query })
+                });
+                let result = await response.json();
+                console.log("🔹 Similar Slang Response:", result);
+                document.getElementById("slangQueryResponse").innerText = JSON.stringify(result, null, 2);
+            } catch (err) {
+                console.error("❌ Error querying similar slang:", err);
+                document.getElementById("slangQueryResponse").innerText = "Error querying similar slang.";
+            }
+        }
+
+        async function testCreditDeduction() {
+            let token = await getAuthToken();
+            if (!token) return;
+
+            let amount = document.getElementById("deductAmount").value;
+            if (!amount || isNaN(amount)) {
+                document.getElementById("deductionResponse").innerText = "Please enter a valid number";
+                return;
+            }
+
+            try {
+                let response = await fetch("http://localhost:8000/app/stripe/deduct-credits", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        amount: parseInt(amount)
+                    })
+                });
+
+                let result = await response.json();
+                if (response.ok) {
+                    document.getElementById("deductionResponse").innerText = 
+                        `✅ Success! New balance: ${result.new_balance} credits`;
+                } else {
+                    document.getElementById("deductionResponse").innerText = 
+                        `❌ Error: ${result.detail}`;
+                }
+            } catch (err) {
+                console.error("❌ Error deducting credits:", err);
+                document.getElementById("deductionResponse").innerText = "Error processing deduction";
+            }
+        }
+
+</script>
+
+
+</body>
+
+</html>

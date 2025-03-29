@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Subscription Purchase</title>
+
+    <!-- Load Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Load Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        .container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 350px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #007BFF;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login / Sign Up Container (Reuse similar UI from auth_client.html) -->
+    <div class="container">
+        <h2>Login / Sign Up</h2>
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="signUp()">Sign Up</button>
+        <button onclick="login()">Login</button>
+        <p class="message" id="statusMessage"></p>
+    </div>
+
+    <!-- Stripe Subscription Container -->
+    <div class="container">
+        <h2>Purchase Subscription</h2>
+        <select id="subscriptionPlan">
+            <option value="basic">Basic ($10/month)</option>
+            <option value="standard">Standard ($30/month)</option>
+            <option value="premium">Premium ($50/month)</option>
+        </select>
+        <button onclick="purchaseSubscription()">Purchase Subscription</button>
+        <p class="message" id="subscriptionResponse"></p>
+    </div>
+
+    <!-- One-Time Credit Purchase Container -->
+    <div class="container">
+        <h2>Buy Credits One-Time</h2>
+        <select id="creditTier">
+            <option value="basic">Basic (2,000 credits for $10)</option>
+            <option value="standard">Standard (6,000 credits for $30)</option>
+            <option value="premium">Premium (10,000 credits for $50)</option>
+        </select>
+        <button onclick="purchaseOneTimeCredits()">Purchase Credits</button>
+        <p class="message" id="creditPurchaseResponse"></p>
+    </div>
+
+    <script>
+        let supabase;
+        let stripeInstance;
+
+        async function loadConfig() {
+            try {
+                console.log("🔄 Fetching Supabase config...");
+                let response = await fetch("http://localhost:8000/config");
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                let config = await response.json();
+                console.log("✅ Supabase Config Received:", config);
+                if (!config.SUPABASE_URL || !config.SUPABASE_KEY) {
+                    throw new Error("❌ Missing Supabase credentials from backend.");
+                }
+                // Initialize Supabase client
+                supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_KEY);
+                console.log("✅ Supabase Initialized Successfully:", supabase);
+            } catch (error) {
+                console.error("❌ Error initializing Supabase:", error);
+            }
+        }
+
+        async function signUp() {
+            if (!supabase) {
+                console.error("❌ Supabase is not initialized yet.");
+                return;
+            }
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+            let { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) {
+                document.getElementById("statusMessage").innerText = "Error: " + error.message;
+            } else {
+                document.getElementById("statusMessage").innerText = "✅ Sign-up successful! Check your email.";
+            }
+        }
+
+        async function login() {
+            if (!supabase) {
+                console.error("❌ Supabase is not initialized yet.");
+                return;
+            }
+            let email = document.getElementById("email").value;
+            let password = document.getElementById("password").value;
+            let { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                document.getElementById("statusMessage").innerText = "Error: " + error.message;
+            } else {
+                localStorage.setItem("authToken", data.session.access_token);
+                document.getElementById("statusMessage").innerText = "✅ Login successful!";
+            }
+        }
+
+        async function getAuthToken() {
+            const { data, error } = await supabase.auth.getSession();
+            if (error || !data.session) {
+                console.error("❌ User is not authenticated:", error);
+                return null;
+            }
+            return data.session.access_token;
+        }
+
+        // Function to purchase subscription using Stripe Checkout
+        async function purchaseSubscription() {
+            let token = await getAuthToken();
+            if (!token) return;
+            let plan = document.getElementById("subscriptionPlan").value;
+            try {
+                let response = await fetch("http://localhost:8000/app/stripe/create-checkout-session", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ plan: plan })
+                });
+                let result = await response.json();
+                if (result.sessionId) {
+                    // Get Stripe public key from config
+                    const configResponse = await fetch("http://localhost:8000/config");
+                    const config = await configResponse.json();
+                    
+                    stripeInstance = Stripe(config.STRIPE_PUBLIC_KEY);
+                    let { error } = await stripeInstance.redirectToCheckout({ 
+                        sessionId: result.sessionId 
+                    });
+                    if (error) {
+                        console.error("Stripe Checkout error:", error);
+                        document.getElementById("subscriptionResponse").innerText = "Error during checkout: " + error.message;
+                    }
+                } else {
+                    document.getElementById("subscriptionResponse").innerText = "Error: No session returned.";
+                }
+            } catch (err) {
+                console.error("❌ Error calling subscription endpoint:", err);
+                document.getElementById("subscriptionResponse").innerText = "Error accessing subscription purchase.";
+            }
+        }
+
+        // Function to purchase one-time credits using Stripe Checkout
+        async function purchaseOneTimeCredits() {
+            let token = await getAuthToken();
+            if (!token) return;
+            let tier = document.getElementById("creditTier").value;
+            try {
+                // Call the one-time purchase endpoint; note the endpoint is different from subscriptions
+                let response = await fetch("http://localhost:8000/app/stripe/create-one-time-checkout-session", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": "Bearer " + token,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ tier: tier })
+                });
+                let result = await response.json();
+                if (result.sessionId) {
+                    // Get Stripe public key from config
+                    const configResponse = await fetch("http://localhost:8000/config");
+                    const config = await configResponse.json();
+                    stripeInstance = Stripe(config.STRIPE_PUBLIC_KEY);
+                    let { error } = await stripeInstance.redirectToCheckout({ sessionId: result.sessionId });
+                    if (error) {
+                        console.error("Stripe Checkout error:", error);
+                        document.getElementById("creditPurchaseResponse").innerText = "Error during checkout: " + error.message;
+                    }
+                } else {
+                    document.getElementById("creditPurchaseResponse").innerText = "Error: No session returned.";
+                }
+            } catch (err) {
+                console.error("❌ Error calling one-time purchase endpoint:", err);
+                document.getElementById("creditPurchaseResponse").innerText = "Error accessing one-time purchase.";
+            }
+        }
+
+        
+        window.addEventListener("load", async () => {
+            await loadConfig();
+        });
+    </script>
+</body>
+
+</html>

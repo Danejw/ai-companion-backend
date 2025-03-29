@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>WebSocket Client</title>
+    <style>
+        #container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+        }
+
+        #leftSide {
+            flex: 1;
+        }
+
+        #rightSide {
+            flex: 1;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        pre {
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebSocket Client</h1>
+
+    <div id="container">
+        <div id="leftSide">
+            <button id="connectButton">Connect to WebSocket</button>
+            <button id="closeButton" disabled>Close WebSocket</button>
+            <br /><br />
+            <textarea id="messageInput" placeholder="Enter your message here..." rows="4" cols="50"></textarea>
+            <br />
+            <button id="sendButton" disabled>Send Message</button>
+            <button id="recordButton" disabled>🎤 Start Recording</button>
+
+            <br /><br />
+            <div id="rightSide">
+                <h2>Assistant's Transcript:</h2>
+                <pre id="cleanResponse"></pre>
+            </div>
+
+            <br /><br />
+            <h2>Messages (raw logs):</h2>
+            <pre id="messages"></pre>
+        </div>
+    </div>
+
+    <script>
+        let websocket;
+        let transcriptBuffer = "";
+        let audioContext;
+        let mediaStream;
+        let mediaProcessor;
+        let isRecording = false;
+        let nextPlayTime = 0;
+
+        const connectButton = document.getElementById("connectButton");
+        const closeButton = document.getElementById("closeButton");
+        const sendButton = document.getElementById("sendButton");
+        const recordButton = document.getElementById("recordButton");
+        const messageInput = document.getElementById("messageInput");
+        const messagesDisplay = document.getElementById("messages");
+        const cleanResponseDisplay = document.getElementById("cleanResponse");
+
+        connectButton.addEventListener("click", () => {
+            websocket = new WebSocket("ws://localhost:8000/realtime");
+            websocket.binaryType = "arraybuffer";
+
+            websocket.onopen = () => {
+                logRaw("Connected to WebSocket server.\n");
+                sendButton.disabled = false;
+                closeButton.disabled = false;
+                recordButton.disabled = false;
+
+                if (!audioContext || audioContext.state === "closed") {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+                }
+            };
+
+            websocket.onmessage = async (event) => {
+                if (typeof event.data === "string") {
+                    let data;
+                    try {
+                        data = JSON.parse(event.data);
+                    } catch (e) {
+                        logRaw("Error parsing JSON: " + e + "\n");
+                        return;
+                    }
+
+                    logRaw("Received: " + event.data + "\n");
+
+                    if (data.type === "conversation.item.created") {
+                        websocket.send(JSON.stringify({ type: "response.create" }));
+                    }
+
+                    if (data.type === "response.audio_transcript.delta" && data.delta) {
+                        transcriptBuffer += data.delta;
+                        cleanResponseDisplay.textContent = transcriptBuffer;
+                        messageInput.value = transcriptBuffer;
+                    }
+
+                    if (data.type === "response.content_part.done") {
+                        const finalTranscript = data.part?.transcript || transcriptBuffer;
+                        cleanResponseDisplay.textContent = finalTranscript;
+                        messageInput.value = finalTranscript;
+                        transcriptBuffer = "";
+                    }
+
+                    if (data.type === "response.audio.delta" && data.delta) {
+                        const pcmBuffer = base64ToPCM(data.delta);
+                        playPCM(pcmBuffer);
+                    }
+                } else if (event.data instanceof ArrayBuffer) {
+                    playPCM(event.data);
+                }
+            };
+
+            websocket.onclose = () => {
+                logRaw("WebSocket connection closed.\n");
+                sendButton.disabled = true;
+                closeButton.disabled = true;
+                recordButton.disabled = true;
+                stopRecording();
+            };
+
+            websocket.onerror = (error) => {
+                logRaw("WebSocket error: " + error.message + "\n");
+            };
+        });
+
+        sendButton.addEventListener("click", () => {
+            const message = messageInput.value.trim();
+            if (message !== "") {
+                const payload = {
+                    type: "conversation.item.create",
+                    item: {
+                        type: "message",
+                        role: "user",
+                        content: [
+                            {
+                                type: "input_text",
+                                text: message
+                            }
+                        ]
+                    }
+                };
+                websocket.send(JSON.stringify(payload));
+                logRaw("Sent: " + JSON.stringify(payload) + "\n");
+                messageInput.value = "";
+            } else {
+                alert("Please enter a message to send.");
+            }
+        });
+
+        closeButton.addEventListener("click", () => {
+            if (websocket) websocket.close();
+        });
+
+        recordButton.addEventListener("click", async () => {
+            if (!isRecording) {
+                await startRecording();
+                recordButton.textContent = "🛑 Stop Recording";
+            } else {
+                stopRecording();
+                recordButton.textContent = "🎤 Start Recording";
+            }
+        });
+
+        function logRaw(msg) {
+            messagesDisplay.textContent += msg;
+        }
+
+        function base64ToPCM(base64) {
+            const binary = atob(base64);
+            const len = binary.length;
+            const buffer = new ArrayBuffer(len);
+            const view = new Uint8Array(buffer);
+            for (let i = 0; i < len; i++) view[i] = binary.charCodeAt(i);
+            return buffer;
+        }
+
+        function playPCM(pcmBuffer) {
+            if (!audioContext) return;
+
+            const int16Array = new Int16Array(pcmBuffer);
+            const float32Array = new Float32Array(int16Array.length);
+            for (let i = 0; i < int16Array.length; i++) {
+                float32Array[i] = int16Array[i] / 32768;
+            }
+
+            const audioBuffer = audioContext.createBuffer(1, float32Array.length, 24000);
+            audioBuffer.getChannelData(0).set(float32Array);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+
+            const now = audioContext.currentTime;
+            if (nextPlayTime < now) nextPlayTime = now;
+            source.start(nextPlayTime);
+            nextPlayTime += audioBuffer.duration;
+        }
+
+        async function startRecording() {
+            mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const source = audioContext.createMediaStreamSource(mediaStream);
+            const processor = audioContext.createScriptProcessor(4096, 1, 1);
+
+            processor.onaudioprocess = (e) => {
+                if (!isRecording || !websocket || websocket.readyState !== WebSocket.OPEN) return;
+
+                const input = e.inputBuffer.getChannelData(0);
+                const pcm = new Int16Array(input.length);
+                for (let i = 0; i < input.length; i++) {
+                    let s = Math.max(-1, Math.min(1, input[i]));
+                    pcm[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+                }
+
+                websocket.send(pcm.buffer);
+            };
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            mediaProcessor = processor;
+            isRecording = true;
+        }
+
+        function stopRecording() {
+            isRecording = false;
+            if (mediaProcessor) {
+                mediaProcessor.disconnect();
+                mediaProcessor = null;
+            }
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+        }
+    </script>
+</body>
+
+</html>
