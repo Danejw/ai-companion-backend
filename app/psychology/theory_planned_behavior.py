@@ -37,7 +37,6 @@ instructions = (
     Extract Perceived Behavioral Control: Identify any expressions of self-efficacy (confidence in performing the behavior) and external facilitators or barriers that the user notes.
     Determine Behavioral Intention: Based on the information above, infer the overall strength of the user's intention to perform the behavior (for example: "strong," "moderate," or "weak").
 """
-    
 )
 
 tpb_agent = Agent(

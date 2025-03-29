@@ -24,7 +24,7 @@ async def classify_intent(request: IntentRequest, user_id: str = Depends(verify_
         HTTPException: If classification fails
     """
     try:
-        service = IntentClassificationService(user_id=user_id)
+        service = IntentClassificationService(user_id)
         result = await service.classify_intent(request.message)
         
         if result is None:

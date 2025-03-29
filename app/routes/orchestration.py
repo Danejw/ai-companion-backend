@@ -2,6 +2,8 @@ from http.client import HTTPException
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.personal_agents.planner import PlannerService
 from app.personal_agents.slang_extraction import SlangExtractionService
+from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
+from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
 from app.supabase.conversation_history import append_message_to_history, get_or_create_conversation_history, replace_conversation_history_with_summary
@@ -181,6 +183,8 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
     mbti_service = MBTIAnalysisService(user_id)    
     ocean_service = OceanAnalysisService(user_id)
     slang_service = SlangExtractionService(user_id)
+    intent_service = IntentClassificationService(user_id)
+    tpb_service = TheoryPlannedBehaviorService(user_id)
 
     # Retrieve stored MBTI & OCEAN
     mbti_type = mbti_service.get_mbti_type()
@@ -191,6 +195,19 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
     
     # Retrieve or create the conversation context for the user
     history = get_or_create_conversation_history(user_id)
+    
+    # Convert history list to string
+    history_string = "\n".join(history)
+    
+    # Classify the intent of the user
+    intent = await intent_service.classify_intent(history_string)
+    if intent.confidence_score < 0.85:
+        intent = "Unconfident in the intent of the user, a possible clarifying question: " + intent.clarifying_question + (f"if used ask is it in the most natural way possible")
+    
+    # Classify the behavior of the user
+    tpb = await tpb_service.classify_behavior(history_string)
+    if tpb.confidence_score < 0.85:
+        tpb = "Unconfident in the behavior analysis of the user"
     
     instructions = f"""
         You are a conversational agent. 
@@ -213,9 +230,12 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
         
         Your conversational style should be: {style_prompt}
         
+        The intent of the user is: {intent}
+        The behavior of the user is: {tpb}
+        
         Use similar language as the user, here are some examples: {slang_result}
 
-        Conversation History: {history}
+        Conversation History: {history_string}
     """
     
     logging.info(f"Convo Lead Instructions: {instructions}")
