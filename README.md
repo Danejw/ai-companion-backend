@@ -33,3 +33,14 @@ It’s a space where you can express yourself freely and feel understood — eve
 
 In a world where people are more connected than ever, loneliness is still everywhere.  
 It’s mission is to change that — one conversation at a time.
+
+
+---
+
+### 📚 Additional Resources
+
+- [Loneliness & AI Companionship](https://danejw.gumroad.com/l/LonelinessAndAICompanionship)  
+  A short digital guide diving deep into to problem of Loneliness.
+
+- [Psychology of Connection](https://danejw.gumroad.com/l/Psychology)  
+  Dive into an intricate research document looking into Human Psychology
