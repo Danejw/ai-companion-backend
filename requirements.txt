@@ -75,7 +75,7 @@ supabase==2.15.0
 supafunc==0.9.4
 tensorboard==2.19.0
 tensorboard-data-server==0.7.2
-tensorflow==2.19.0
+tensorflow==1.15.0
 termcolor==2.5.0
 typing-inspection==0.4.0
 typing_extensions==4.13.0
