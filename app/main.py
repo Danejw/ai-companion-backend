@@ -39,6 +39,8 @@ from app.stripe.subscription import router as stripe_router
 from app.routes.slang import router as slang_router
 from app.stripe.subscription import router as stripe_router
 from app.routes.moderation_check import router as moderation_router
+from app.routes.intent_classifier import router as intent_classifier_router
+from app.routes.theory_planned_behavior_route import router as theory_planned_behavior_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -49,6 +51,8 @@ app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchest
 app.include_router(stripe_router, prefix="/app/stripe", tags=["stripe"])
 app.include_router(slang_router, prefix="/slang", tags=["Slang"])
 app.include_router(moderation_router, prefix="/moderation", tags=["Moderation"])
+app.include_router(intent_classifier_router, prefix="/intent", tags=["Intent"])
+app.include_router(theory_planned_behavior_router, prefix="/tpb", tags=["Theory Planned Behavior"])
 
 
 
