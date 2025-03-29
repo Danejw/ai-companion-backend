@@ -5,6 +5,7 @@ annotated-types==0.7.0
 anyio==4.9.0
 attrs==25.3.0
 certifi==2025.1.31
+click==8.1.8
 colorama==0.4.6
 deprecation==2.1.0
 distlib==0.3.9
@@ -40,6 +41,7 @@ supabase==2.15.0
 supafunc==0.9.4
 typing-inspection==0.4.0
 typing_extensions==4.13.0
+uvicorn==0.34.0
 virtualenv==20.28.0
 websockets==14.2
 yarl==1.18.3
