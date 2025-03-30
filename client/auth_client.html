@@ -195,7 +195,7 @@
         try {
             console.log("🔄 Fetching Supabase config...");
 
-            let response = await fetch("http://localhost:8000/config");
+            let response = await fetch("https://ai-companion-backend-opuh.onrender.com/config");
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -373,7 +373,7 @@
             }
 
             try {
-                let response = await fetch("http://localhost:8000/orchestration/convo-lead", {
+                let response = await fetch("https://ai-companion-backend-opuh.onrender.com/orchestration/convo-lead", {
                     method: "POST",
                     headers: {
                         "Authorization": "Bearer " + token,
@@ -544,15 +544,8 @@
                         "Authorization": "Bearer " + token,
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({
-                        message: message
-                    })
+                    body: JSON.stringify({ message: message })
                 });
-
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || "Failed to analyze behavior");
-                }
 
                 let result = await response.json();
                 console.log("🔹 TPB Analysis Response:", result);
@@ -563,7 +556,7 @@
 
             } catch (err) {
                 console.error("❌ Error in TPB analysis:", err);
-                document.getElementById("tpbResponse").innerText = `Error: ${err.message}`;
+                document.getElementById("tpbResponse").innerText = "Error analyzing behavior.";
             }
         }
 
