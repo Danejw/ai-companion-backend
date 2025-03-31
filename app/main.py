@@ -41,7 +41,8 @@ from app.stripe.subscription import router as stripe_router
 from app.routes.moderation_check import router as moderation_router
 from app.routes.intent_classifier import router as intent_classifier_router
 from app.routes.theory_planned_behavior_route import router as theory_planned_behavior_router
-from app.routes.profiles_route import router as profiles_router
+from app.routes.profiles_routes import router as profiles_router
+from app.routes.conversation_routes import router as conversation_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -55,6 +56,7 @@ app.include_router(moderation_router, prefix="/moderation", tags=["Moderation"])
 app.include_router(intent_classifier_router, prefix="/intent", tags=["Intent"])
 app.include_router(theory_planned_behavior_router, prefix="/tpb", tags=["Theory Planned Behavior"])
 app.include_router(profiles_router, prefix="/profiles", tags=["Profiles"])
+app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
 
 
 # Force HTTPS connections in production

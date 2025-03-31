@@ -1,12 +1,15 @@
 from fastapi import APIRouter, HTTPException, status
 from app.supabase.profiles import ProfileRepository
+from app.auth import verify_token
+from fastapi.params import Depends
+
 
 # Initialize the router
 router = APIRouter()
 
 
-@router.get("/users/{user_id}/credits", tags=["profiles"])
-async def get_user_credits_route(user_id: str):
+@router.get("/users/{user_id}/credits")
+async def get_user_credits_route(user_id=Depends(verify_token)):
     """1
     Retrieves the credit balance for a specific user.
     """
