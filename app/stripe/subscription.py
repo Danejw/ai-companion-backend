@@ -100,7 +100,7 @@ async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequ
         raise HTTPException(status_code=500, detail=str(e))
 
 # Create a checkout session for a subscription
-@router.post("/create-checkout-session")
+#@router.post("/create-checkout-session")
 async def create_checkout_session(subscription_request: SubscriptionRequest, user=Depends(verify_token)):
     try:
         plan = subscription_request.plan
