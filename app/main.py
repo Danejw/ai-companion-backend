@@ -42,6 +42,7 @@ from app.routes.intent_classifier import router as intent_classifier_router
 from app.routes.theory_planned_behavior_route import router as theory_planned_behavior_router
 from app.routes.profiles_routes import router as profiles_router
 from app.routes.conversation_routes import router as conversation_router
+from app.routes.vector_routes import router as vector_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -56,7 +57,7 @@ app.include_router(intent_classifier_router, prefix="/intent", tags=["Intent"])
 app.include_router(theory_planned_behavior_router, prefix="/tpb", tags=["Theory Planned Behavior"])
 app.include_router(profiles_router, prefix="/profiles", tags=["Profiles"])
 app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
-
+app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"

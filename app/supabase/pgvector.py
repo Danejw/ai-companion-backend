@@ -132,3 +132,39 @@ def find_similar_slang(user_id: str, query: str, top_k=5):
     }).execute()
     
     return response.data if response.data else {"message": "No similar slang found."}
+
+def get_user_knowledge_vectors(user_id: str, limit: int = 10):
+    """
+    Retrieves a list of knowledge vectors for a specific user.
+    """
+    response = supabase.table("user_knowledge").select("*").eq("user_id", user_id).limit(limit).execute()
+    return response.data if response.data else {"message": "No knowledge vectors found for this user."}
+
+def get_user_slang_vectors(user_id: str, limit: int = 10):
+    """
+    Retrieves a list of slang vectors for a specific user.
+    """
+    response = supabase.table("user_slang").select("*").eq("user_id", user_id).limit(limit).execute()
+    return response.data if response.data else {"message": "No slang vectors found for this user."}
+
+def remove_user_knowledge(user_id: str, knowledge_id: str):
+    """
+    Removes a knowledge vector for a specific user.
+    """
+    try:
+        supabase.table("user_knowledge").delete().eq("user_id", user_id).eq("id", knowledge_id).execute()
+        return {"message": "Knowledge vector removed successfully."}
+    except Exception as e:
+        return {"message": f"Error removing knowledge vector: {e}"}
+
+def remove_user_slang(user_id: str, slang_id: str):
+    """
+    Removes a slang vector for a specific user.
+    """
+    try:    
+        supabase.table("user_slang").delete().eq("user_id", user_id).eq("id", slang_id).execute()
+        return {"message": "Slang vector removed successfully."}
+    except Exception as e:
+        return {"message": f"Error removing slang vector: {e}"}
+
+
