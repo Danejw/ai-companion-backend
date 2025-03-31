@@ -8,7 +8,7 @@ from app.supabase.conversation_history import get_or_create_conversation_history
 # Initialize the router
 router = APIRouter()
 
-@router.get("/conversations/{user_id}/history", response_model=List[str])
+@router.get("/{user_id}/history", response_model=List[str])
 async def get_conversation_history_route(user_id=Depends(verify_token)):
     """
     Retrieves the full conversation history for a specific user.

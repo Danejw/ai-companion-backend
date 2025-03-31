@@ -27,7 +27,6 @@ app.add_middleware(
 )
 
 
-
 # Registering routers
 from app.routes.health_check import health_check_router
 from app.routes.realtime import realtime_router
