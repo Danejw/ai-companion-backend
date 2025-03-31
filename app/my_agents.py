@@ -1,5 +1,6 @@
 import asyncio
 from agents import Agent, Runner, function_tool, WebSearchTool, FileSearchTool
+from pydantic import BaseModel
 
 from app.psychology.chinese_zodiac import get_chinese_zodiac
 from app.psychology.ocean_analysis import OceanResponse
@@ -10,11 +11,11 @@ from app.psychology.western_zodiac import get_western_zodiac
 
 
     
-# class MBTIOutput(BaseModel):
-#     extraversion_introversion: float
-#     sensing_intuition: float
-#     thinking_feeling: float
-#     judging_perceiving: float
+class MBTIOutput(BaseModel):
+    extraversion_introversion: float
+    sensing_intuition: float
+    thinking_feeling: float
+    judging_perceiving: float
     
     
 birthMonth = 9
