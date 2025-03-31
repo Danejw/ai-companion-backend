@@ -8,13 +8,14 @@ from app.supabase.conversation_history import get_or_create_conversation_history
 # Initialize the router
 router = APIRouter()
 
-@router.get("/{user_id}/history")
-async def get_conversation_history_route(user_id): #user_id=Depends(verify_token)):
+@router.get("/history")
+async def get_conversation_history_route(user_id=Depends(verify_token)):
     """
     Retrieves the full conversation history for a specific user.
     If no history exists, a new record is created (if configured) and an empty list is returned.
     """
     try:
+        user_id = user_id["id"]
         history = get_or_create_conversation_history(user_id)
         # The function already handles creation and returns [] on error/not found,
         # so we can directly return the result.

@@ -8,11 +8,13 @@ from fastapi.params import Depends
 router = APIRouter()
 
 
-@router.get("/users/{user_id}/credits")
+@router.get("/users/credits")
 async def get_user_credits_route(user_id=Depends(verify_token)):
     """1
     Retrieves the credit balance for a specific user.
     """
+
+    user_id = user_id["id"]
     repo = ProfileRepository()
     credits = repo.get_user_credit(user_id)
     if credits is None:
