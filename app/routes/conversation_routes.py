@@ -16,6 +16,7 @@ async def get_conversation_history_route(user_id_from_path: str = Path(..., titl
     If no history exists, a new record is created (if configured) and an empty list is returned.
     """
     try:
+        logging.info(f"user_id_from_path: {user_id_from_path}")
         token_user_id = user_id.get("id")
         if not token_user_id or token_user_id != user_id_from_path:
             logging.warning(f"Authorization denied: Token user '{token_user_id}' tried to access history for path user '{user_id_from_path}'")
