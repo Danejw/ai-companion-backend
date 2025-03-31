@@ -9,7 +9,7 @@ from app.supabase.conversation_history import get_or_create_conversation_history
 # Initialize the router
 router = APIRouter()
 
-@router.get("/{user_id}/history", response_model=List[str])
+@router.get("/{user_id}/history")
 async def get_conversation_history_route(user_id_from_path: str = Path(..., title="The User ID from the URL path"), user_id=Depends(verify_token)):
     """
     Retrieves the full conversation history for a specific user.
@@ -23,7 +23,6 @@ async def get_conversation_history_route(user_id_from_path: str = Path(..., titl
                  status_code=status.HTTP_FORBIDDEN,
                  detail="You do not have permission to access this resource."
              )
-
 
         # --- Use the ID from the path parameter for the database query ---
         logging.info(f"Fetching history for user ID from path: {user_id_from_path}")
