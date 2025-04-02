@@ -107,7 +107,7 @@ async def replace_conversation_history_with_summary(user_id: str):
         ocean_service = OceanAnalysisService(user_id)
         ocean_task = asyncio.create_task(ocean_service.analyze_message(history_string))
         await ocean_task
-        
+                
         # Run SLANG analysis
         slang_service = SlangExtractionService(user_id)
         slang_task = asyncio.create_task(slang_service.extract_slang(history_string))

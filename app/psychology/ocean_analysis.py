@@ -14,16 +14,38 @@ class OceanResponse(BaseModel):
     neuroticism: float
 
 instructions = """
-You are an expert in personality analysis. You will be given a message and you will need to analyze the message and return an OCEAN personality analysis of the message.
-            
-The OCEAN personality analysis should have 5 dimensions:
-- Openness
-- Conscientiousness
-- Extraversion
-- Agreeableness
-- Neuroticism
+You are an expert in personality analysis using the OCEAN (Big Five) personality framework. You will analyze the given message and return a detailed personality assessment.
 
-Each dimension should have a score between 0 and 1, with 1 being the highest score.
+The OCEAN personality analysis consists of 5 core dimensions:
+
+1. Openness to Experience (0-1):
+   - High (>0.5): Curious, creative, imaginative, open to new ideas
+   - Low (<0.5): Traditional, practical, conventional, prefers routine
+
+2. Conscientiousness (0-1):
+   - High (>0.5): Organized, responsible, goal-oriented, detail-focused
+   - Low (<0.5): Spontaneous, flexible, less structured, more laid-back
+
+3. Extraversion (0-1):
+   - High (>0.5): Outgoing, energetic, sociable, enjoys being around people
+   - Low (<0.5): Reserved, introspective, prefers solitude, less social
+
+4. Agreeableness (0-1):
+   - High (>0.5): Compassionate, cooperative, trusting, considerate
+   - Low (<0.5): Competitive, skeptical, direct, self-focused
+
+5. Neuroticism (0-1):
+   - High (>0.5): Emotionally sensitive, anxious, moody, stress-reactive
+   - Low (<0.5): Emotionally stable, calm, resilient, less reactive
+
+Scoring Guidelines:
+- Each dimension should be scored between 0 and 1
+- 0.5 represents a neutral score
+- Scores above 0.5 indicate high levels of the trait
+- Scores below 0.5 indicate low levels of the trait
+- Consider both explicit statements and implicit indicators in the message
+- Be objective and consistent in your analysis
+- Consider the context and intensity of the expressed traits
 """
 
 ocean_agent = Agent(
@@ -46,7 +68,7 @@ class OceanAnalysisService:
         if stored_ocean:
             self.ocean = stored_ocean
         else:
-            logging.info(f"No existing OCEAN data for user {self.user_id}. Using defaults.")
+            logging.ERROR(f"No existing OCEAN data for user {self.user_id}. Using defaults.")
 
     def save_ocean(self):
         self.repository.upsert_ocean(self.user_id, self.ocean)
@@ -57,7 +79,7 @@ class OceanAnalysisService:
             logging.info(f"OCEAN result: {ocean_result}")
                     
             # Update rolling average
-            self._update_ocean_rolling_average(OceanResponse(**ocean_result.final_output.dict()))
+            self.update_ocean_rolling_average(OceanResponse(**ocean_result.final_output.dict()))
             
             # Save the updated OCEAN data to Supabase
             self.save_ocean()
@@ -68,42 +90,75 @@ class OceanAnalysisService:
             logging.error(f"Error in OCEAN analysis: {e}")
             return None  # Return None to indicate analysis failed
 
-    def _update_ocean_rolling_average(self, new_ocean: OceanResponse):
+    def update_ocean_rolling_average(self, new_ocean: OceanResponse):
         old_count = self.ocean.response_count
         new_count = old_count + 1
 
         def update_dimension(old_avg: float, new_val: float) -> float:
-            # If this is the first entry, use the new value directly.
+            # If this is the first entry, use the new value directly
             if old_count == 0:
                 return new_val
-            old_total = old_avg * old_count
-            if new_val < 0.5:
-                # Subtract the new value if it’s below 0.5.
-                new_total = old_total - new_val
-            else:
-                # Otherwise, add the new value.
-                new_total = old_total + new_val
-            return new_total / new_count
+            
+            # Calculate weighted average based on response count
+            # Newer responses have slightly more weight (1.2x) to capture recent changes
+            weight = 1.2
+            old_weight = old_count
+            new_weight = weight
+            
+            # Calculate weighted average
+            weighted_sum = (old_avg * old_weight) + (new_val * new_weight)
+            total_weight = old_weight + new_weight
+            
+            return weighted_sum / total_weight
 
+        # Update each dimension with the new weighted average
         self.ocean.openness = update_dimension(self.ocean.openness, new_ocean.openness)
         self.ocean.conscientiousness = update_dimension(self.ocean.conscientiousness, new_ocean.conscientiousness)
-        self.ocean.thinking_feeling = update_dimension(self.ocean.thinking_feeling, new_ocean.thinking_feeling)
-        self.ocean.judging_perceiving = update_dimension(self.ocean.judging_perceiving, new_ocean.judging_perceiving)
+        self.ocean.extraversion = update_dimension(self.ocean.extraversion, new_ocean.extraversion)
+        self.ocean.agreeableness = update_dimension(self.ocean.agreeableness, new_ocean.agreeableness)
         self.ocean.neuroticism = update_dimension(self.ocean.neuroticism, new_ocean.neuroticism)
-
         self.ocean.response_count = new_count
-        logging.info(f"Updated OCEAN rolling average for user {self.user_id}.")
 
     def get_personality_traits(self) -> dict:
         """
-        Returns the current OCEAN scores as personality traits.
+        Returns the current OCEAN scores as personality traits with detailed descriptions.
         """
+        def get_trait_description(score: float, trait: str) -> dict:
+            level = "High" if score >= 0.5 else "Low"
+            descriptions = {
+                "openness": {
+                    "High": "Curious and open to new experiences",
+                    "Low": "Traditional and prefers routine"
+                },
+                "conscientiousness": {
+                    "High": "Organized and goal-oriented",
+                    "Low": "Flexible and spontaneous"
+                },
+                "extraversion": {
+                    "High": "Outgoing and sociable",
+                    "Low": "Reserved and introspective"
+                },
+                "agreeableness": {
+                    "High": "Compassionate and cooperative",
+                    "Low": "Direct and self-focused"
+                },
+                "neuroticism": {
+                    "High": "Emotionally sensitive",
+                    "Low": "Emotionally stable"
+                }
+            }
+            return {
+                "level": level,
+                "score": round(score, 2),
+                "description": descriptions[trait][level]
+            }
+
         return {
-            "openness": "High" if self.ocean.openness >= 0.5 else "Low",
-            "conscientiousness": "High" if self.ocean.conscientiousness >= 0.5 else "Low",
-            "extraversion": "High" if self.ocean.extraversion >= 0.5 else "Low",
-            "agreeableness": "High" if self.ocean.agreeableness >= 0.5 else "Low",
-            "neuroticism": "High" if self.ocean.neuroticism >= 0.5 else "Low"
+            "openness": get_trait_description(self.ocean.openness, "openness"),
+            "conscientiousness": get_trait_description(self.ocean.conscientiousness, "conscientiousness"),
+            "extraversion": get_trait_description(self.ocean.extraversion, "extraversion"),
+            "agreeableness": get_trait_description(self.ocean.agreeableness, "agreeableness"),
+            "neuroticism": get_trait_description(self.ocean.neuroticism, "neuroticism")
         }
 
 

@@ -13,14 +13,47 @@ class MBTIResponse(BaseModel):
     judging_perceiving: float
     
 
-instructions = (
-    "You are an expert in personality analysis. Analyze the user's message"
-    "Scores should be between 0 and 1."
-    "For example, 0.5 is neutral. With 0 being being fully extroverted and 1 being fully introverted." 
-    "With 0 being being fully sensing and 1 being fully intuitive." 
-    "With 0 being being fully thinking and 1 being fully feeling." 
-    "With 0 being being fully judging and 1 being fully perceiving." 
-)
+instructions = """
+    You are an expert in personality analysis specializing in the Myers-Briggs Type Indicator (MBTI). Your task is to analyze the user's message and provide a detailed personality assessment across the four MBTI dimensions.
+
+    Analyze the following aspects in the message:
+    1. Language patterns and word choices
+    2. Emotional expression and tone
+    3. Decision-making style
+    4. Information processing approach
+    5. Social interaction preferences
+
+    For each dimension, provide a score between 0 and 1, where:
+    - 0.5 represents a neutral position
+    - Values closer to 0 or 1 indicate stronger preferences
+
+    Scoring Guidelines:
+    1. Extraversion (0) vs Introversion (1)
+       - 0: Highly social, external focus, expressive
+       - 1: Reserved, internal focus, reflective
+
+    2. Sensing (0) vs Intuition (1)
+       - 0: Concrete, detail-oriented, present-focused
+       - 1: Abstract, pattern-seeking, future-oriented
+
+    3. Thinking (0) vs Feeling (1)
+       - 0: Logical, objective, analytical
+       - 1: Empathetic, subjective, values-based
+
+    4. Judging (0) vs Perceiving (1)
+       - 0: Structured, decisive, closure-seeking
+       - 1: Flexible, open-ended, information-gathering
+
+    Important Guidelines:
+    - Base your analysis on observable patterns in the message
+    - Consider both explicit statements and implicit indicators
+    - Avoid stereotypes and maintain objectivity
+    - Provide balanced analysis across all dimensions
+    - Consider the context and purpose of the message
+
+    Your analysis should be thorough but concise, focusing on clear evidence from the text.
+"""
+
 
 mbti_agent = Agent(
     name="MBTI",
@@ -103,10 +136,10 @@ class MBTIAnalysisService:
         
         print("MBTI Self: ", self.mbti)
         
-        e_i = "E" if self.mbti.extraversion_introversion >= 0.5 else "I"
-        s_n = "S" if self.mbti.sensing_intuition >= 0.5 else "N"
-        t_f = "T" if self.mbti.thinking_feeling >= 0.5 else "F"
-        j_p = "J" if self.mbti.judging_perceiving >= 0.5 else "P"
+        e_i = "E" if self.mbti.extraversion_introversion <= 0.5 else "I"
+        s_n = "S" if self.mbti.sensing_intuition <= 0.5 else "N"
+        t_f = "T" if self.mbti.thinking_feeling <= 0.5 else "F"
+        j_p = "J" if self.mbti.judging_perceiving <= 0.5 else "P"
         return e_i + s_n + t_f + j_p
 
     @staticmethod

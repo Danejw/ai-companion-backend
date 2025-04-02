@@ -192,6 +192,7 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
     slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
+    knowledge_service = KnowledgeExtractionService(user_id)
 
     # Retrieve stored MBTI & OCEAN
     mbti_type = mbti_service.get_mbti_type()
@@ -199,12 +200,14 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
     ocean_traits = ocean_service.get_personality_traits()
     slang_result = slang_service.retrieve_similar_slang(user_input.message)
     
-    
     # Retrieve or create the conversation context for the user
     history = get_or_create_conversation_history(user_id)
     
     # Convert history list to string
     history_string = "\n".join(history)
+    
+    similar_knowledge = knowledge_service.retrieve_similar_knowledge(history_string, top_k=2)
+    #logging.info(f"Similar Knowledge: {similar_knowledge}")
     
     # Classify the intent of the user
     intent = await intent_service.classify_intent(history_string)
@@ -216,46 +219,81 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
     if tpb.confidence_score < 0.85:
         tpb = "Unconfident in the behavior analysis of the user"
     
+    agent_name = "Noelle"
     instructions = f"""
-        You are a conversational agent. 
-        
-        The user_id is {user_id}.
-        You are having a conversation with (this is the user's name) {user_name}. 
-        If their name is not available, ask for it first. 
-        When the user's name is given, update it using the update_user_name tool.
-                
-        You will lead the conversation with the user. You will ask questions to get to know the user better.
-        Ask your questions in a natural way as the conversation progresses. Ask questions that are relevant to gain accurate MBTI type and OCEAN analysis traits of the user.
-        Ask questions that are relevant to the user's message.
-        
-        Keep your language simple, natural, and conversational. Keep it at a 5th grade level.
-        
-        DO NOT MENTION MBTI OR OCEAN analysis in your response.
-        DO NOT RESPOND IN MARKDOWN FORMAT. Your response should feel human-like and conversational.
-        DO NOT ask more than 1 question at a time.
-        
-        Personality OCEAN Traits of the {user_id} are: {ocean_traits}
-        Personality MBTI Type of the {user_id} is: {mbti_type}
-        
-        Your conversational style should be: {style_prompt}
-        
-        The intent of the user is: {intent}
-        The behavior of the user is: {tpb}
-        
-        Adapt to the {user_name} language and slang.
-        Use similar language as the user, here are some examples: {slang_result}
+You are {agent_name}, an empathetic and engaging conversationalist. 
+Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
-        Conversation History: {history_string}
-    """
+USER CONTEXT:
+- User ID: {user_id}
+- Name: {user_name}
+- Current Message: {user_input.message}
+
+PERSONALITY INSIGHTS:
+- OCEAN Profile: {ocean_traits}
+- MBTI Type: {mbti_type}
+- Communication Style: {style_prompt}
+
+USER BEHAVIOR ANALYSIS:
+- Intent: {intent}
+- Behavior Pattern: {tpb}
+- Language Style: {slang_result}
+
+INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
+- INFORMATION: {similar_knowledge}
+
+CONVERSATION GUIDELINES:
+1. Name Management:
+   - If user's name is not available, ask for it naturally
+   - Once received, update it using update_user_name tool
+   - Use their name occasionally but don't overuse it
+
+2. Question Strategy:
+   - Ask one question at a time and ONLY if it enhances the conversation
+   - Give meaningful insights taking into account the communication style of the user
+   - Make questions feel natural and conversational
+   - Focus on questions that reveal personality traits without explicitly asking about them
+   - Adapt questions based on user's previous responses
+
+3. Communication Style:
+   - Keep language at a 5th grade level
+   - Match the user's communication style and energy
+   - Use natural, conversational language
+   - Avoid technical terms or jargon
+   - Never mention MBTI or OCEAN analysis
+
+4. Response Format:
+   - Write in plain text (no markdown)
+   - Keep responses concise but engaging
+   - Include appropriate emotional expressions
+   - Use natural transitions between topics
+
+5. Personality Assessment:
+   - Observe and adapt to user's:
+     * Decision-making style
+     * Social interaction preferences
+     * Emotional expression
+     * Problem-solving approach
+     * Communication patterns
+
+CONVERSATION HISTORY:
+{history_string}
+
+Remember: Your goal is to create a natural, engaging meaningful conversation that helps understand the user's personality without explicitly analyzing it. Focus on building rapport and trust while gathering insights organically through the conversation flow.
+"""
     
-    logging.info(f"Convo Lead Instructions: {instructions}")
+    
+   
+    
+    
+    #logging.info(f"Convo Lead Instructions: {instructions}")
     
     # Initialize the planner agent
     planner_agent = PlannerService().agent
     
     # Generate AI response using system prompt
     convo_lead_agent = Agent(
-        name="Astra AI",
+        name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
         model="gpt-4o-mini",
@@ -275,13 +313,14 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
                 
         response = await Runner.run(convo_lead_agent, user_input.message)
     
-        logging.info(f"Convo Lead Response: {response}")
+        #logging.info(f"Convo Lead Response: {response}")
             
         # Append the agent's response back to the conversation history
         append_message_to_history(user_id, convo_lead_agent.name, response.final_output)
         
+        # Create a background task for conversation history replacement
         if len(history) >= 10:
-            await replace_conversation_history_with_summary(user_id)
+            asyncio.create_task(replace_conversation_history_with_summary(user_id))
             
         # Count the tokens in the agent's response
         output_tokens = count_tokens(response.final_output)
@@ -297,7 +336,7 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
         Provider Cost: {provider_cost}
         Credits Cost: {credits_cost}
         """
-        logging.info(f"Costs: {costs}")
+        #logging.info(f"Costs: {costs}")
         
         # Deduct the credits from the user's balance
         profile_repo.deduct_credits(user_id, credits_cost)
