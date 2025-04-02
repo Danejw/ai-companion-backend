@@ -28,7 +28,7 @@ class UserInput(BaseModel):
     
 class ErrorResponse(BaseModel):
     error: bool
-    error: str
+    message: str
     
 class AIResponse(BaseModel):
     response: str
