@@ -280,7 +280,7 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
         # Append the agent's response back to the conversation history
         append_message_to_history(user_id, convo_lead_agent.name, response.final_output)
         
-        if len(history) >= 3:
+        if len(history) >= 10:
             await replace_conversation_history_with_summary(user_id)
             
         # Count the tokens in the agent's response
