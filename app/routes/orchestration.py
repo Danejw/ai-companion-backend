@@ -157,18 +157,17 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
     """
     user_id = user["id"]
     
-    
-    
-    # TODO: Add a check to see if the user has enough credits by calculating the token used in the message
     credits = profile_repo.get_user_credit(user_id)
     if credits is None or credits < 1:
-        raise HTTPException(status_code=402, detail="Insufficient credits")
+        return {"error": "Insufficient credits"}
+    
+    
     
     # Check if the user's message is safe
     moderation_service = ModerationService()
     is_safe = moderation_service.is_safe(user_input.message)
     if not is_safe:
-        raise HTTPException(status_code=400, detail="Inappropriate content")
+        return {"error": "Inappropriate content"}
     
     # Get the users name
     user_name = get_user_name(user_id)
@@ -224,6 +223,8 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
         Keep your language simple, natural, and conversational. Keep it at a 5th grade level.
         
         DO NOT MENTION MBTI OR OCEAN analysis in your response.
+        DO NOT RESPOND IN MARKDOWN FORMAT. Your response should feel human-like and conversational.
+        DO NOT ask more than 1 question at a time.
         
         Personality OCEAN Traits of the {user_id} are: {ocean_traits}
         Personality MBTI Type of the {user_id} is: {mbti_type}
@@ -296,7 +297,7 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
             
     except Exception as e:
         logging.error(f"Error processing convo lead: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+        return {"error": "Internal Server Error"}
     
 
 
