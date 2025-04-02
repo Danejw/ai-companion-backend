@@ -14,7 +14,7 @@ class MBTI(BaseModel):
     sensing_intuition: float = 0.0
     thinking_feeling: float = 0.0
     judging_perceiving: float = 0.0
-    response_count: int = 0
+    message_count: int = 0
     
 
 

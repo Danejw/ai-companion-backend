@@ -175,8 +175,8 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIRes
     # Check if the user's message is safe
     moderation_service = ModerationService()
     is_safe = moderation_service.is_safe(user_input.message)
-    if not is_safe:
-        return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
+    #if not is_safe:
+        #return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
     # Get the users name
     user_name = get_user_name(user_id)
     

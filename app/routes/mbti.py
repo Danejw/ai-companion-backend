@@ -23,6 +23,8 @@ class MBTIUpdateResponse(BaseModel):
     sensing_intuition: float
     thinking_feeling: float
     judging_perceiving: float
+    message_count: int
+    
     
 class MBTIAnalysisRequest(BaseModel):
     message: str
@@ -62,7 +64,8 @@ async def get_mbti(user=Depends(verify_token)) -> MBTIUpdateResponse:
         extraversion_introversion=mbti_data.extraversion_introversion, 
         sensing_intuition=mbti_data.sensing_intuition, 
         thinking_feeling=mbti_data.thinking_feeling, 
-        judging_perceiving=mbti_data.judging_perceiving
+        judging_perceiving=mbti_data.judging_perceiving,
+        message_count=mbti_data.message_count
     )
 
     if mbti_data:

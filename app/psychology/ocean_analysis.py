@@ -72,11 +72,24 @@ class OceanAnalysisService:
         old_count = self.ocean.response_count
         new_count = old_count + 1
 
-        self.ocean.openness = (self.ocean.openness * old_count + new_ocean.openness) / new_count
-        self.ocean.conscientiousness = (self.ocean.conscientiousness * old_count + new_ocean.conscientiousness) / new_count
-        self.ocean.extraversion = (self.ocean.extraversion * old_count + new_ocean.extraversion) / new_count
-        self.ocean.agreeableness = (self.ocean.agreeableness * old_count + new_ocean.agreeableness) / new_count
-        self.ocean.neuroticism = (self.ocean.neuroticism * old_count + new_ocean.neuroticism) / new_count
+        def update_dimension(old_avg: float, new_val: float) -> float:
+            # If this is the first entry, use the new value directly.
+            if old_count == 0:
+                return new_val
+            old_total = old_avg * old_count
+            if new_val < 0.5:
+                # Subtract the new value if it’s below 0.5.
+                new_total = old_total - new_val
+            else:
+                # Otherwise, add the new value.
+                new_total = old_total + new_val
+            return new_total / new_count
+
+        self.ocean.openness = update_dimension(self.ocean.openness, new_ocean.openness)
+        self.ocean.conscientiousness = update_dimension(self.ocean.conscientiousness, new_ocean.conscientiousness)
+        self.ocean.thinking_feeling = update_dimension(self.ocean.thinking_feeling, new_ocean.thinking_feeling)
+        self.ocean.judging_perceiving = update_dimension(self.ocean.judging_perceiving, new_ocean.judging_perceiving)
+        self.ocean.neuroticism = update_dimension(self.ocean.neuroticism, new_ocean.neuroticism)
 
         self.ocean.response_count = new_count
         logging.info(f"Updated OCEAN rolling average for user {self.user_id}.")
