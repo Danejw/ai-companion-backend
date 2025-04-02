@@ -23,7 +23,17 @@ router = APIRouter()
 
 class UserInput(BaseModel):
     message: str
+    
 
+    
+class ErrorResponse(BaseModel):
+    error: bool
+    error: str
+    
+class AIResponse(BaseModel):
+    response: str
+    error: ErrorResponse
+    
 
 profile_repo = ProfileRepository()
 
@@ -151,7 +161,7 @@ async def orchestrate(user_input: UserInput, user=Depends(verify_token)):
     
     
 @router.post("/convo-lead")
-async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
+async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIResponse:
     """
     Leads the conversation with the user. Asking questions to get to know the user better.  
     """
@@ -159,16 +169,14 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
     
     credits = profile_repo.get_user_credit(user_id)
     if credits is None or credits < 1:
-        return {"error": "Insufficient credits"}
-    
+        return AIResponse(response="", error=ErrorResponse(error=True, message="NO_CREDITS"))    
     
     
     # Check if the user's message is safe
     moderation_service = ModerationService()
     is_safe = moderation_service.is_safe(user_input.message)
     if not is_safe:
-        return {"error": "Inappropriate content"}
-    
+        return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
     # Get the users name
     user_name = get_user_name(user_id)
     
@@ -293,7 +301,7 @@ async def convo_lead(user_input: UserInput, user=Depends(verify_token)):
         # Deduct the credits from the user's balance
         profile_repo.deduct_credits(user_id, credits_cost)
                     
-        return response.final_output
+        return AIResponse(response=response.final_output, error=ErrorResponse(error=False, message=""))
             
     except Exception as e:
         logging.error(f"Error processing convo lead: {e}")
