@@ -54,7 +54,7 @@ class SlangExtractionService:
                 return None
             
             result.metadata.timestamp = self.get_timestamp()
-            self.store_slang(result)
+            await self.store_slang(result)
             
             return result
         except Exception as e:

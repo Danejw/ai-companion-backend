@@ -57,7 +57,7 @@ def update_conversation_history(user_id: str, history: list):
     """
     try:
         response = supabase.table("conversation_history").update({"history": history}).eq("user_id", user_id).execute()
-        logging.info(f"Updated conversation history for user {user_id}.")
+        logging.info(f"Updated conversation history for user {user_id}. ({response})")
     except Exception as e:
         logging.error(f"Error updating conversation history for user {user_id}: {e}")
 
