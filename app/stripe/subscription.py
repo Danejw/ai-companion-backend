@@ -15,7 +15,7 @@ class SubscriptionRequest(BaseModel):
     plan: str  # Expected values: "basic", "standard", "premium"
 
 class OneTimePurchaseRequest(BaseModel):
-    tier: str  # Expected values: "basic", "standard", "premium"
+    tier: str  # Expected values: "tier1", "tier2", "tier3", "tier4", "tier5"
 
 router = APIRouter()
 
@@ -46,33 +46,42 @@ PLAN_CONFIG = {
 }
 
 ONE_TIME_PURCHASE_CONFIG = {
-    "basic": {
-        "cost": 10,
-        "token_allowance": 2000000,
-        "credits": 2000,
-        "price_id": STRIPE_CONFIG["one_time_prices"]["basic"]  # Price ID for a one-time purchase for Basic tier
+    "tier1": {
+        "cost": 2,
+        "credits": 100,
+        "price_id": STRIPE_CONFIG["one_time_prices"]["tier1"]  # Price ID for Tier 1
     },
-    "standard": {
-        "cost": 30,
-        "token_allowance": 6000000,
-        "credits": 6000,
-        "price_id": STRIPE_CONFIG["one_time_prices"]["standard"]
+    "tier2": {
+        "cost": 6,
+        "credits": 320,
+        "price_id": STRIPE_CONFIG["one_time_prices"]["tier2"]
     },
-    "premium": {
-        "cost": 50,
-        "token_allowance": 10000000,
-        "credits": 10000,
-        "price_id": STRIPE_CONFIG["one_time_prices"]["premium"]
+    "tier3": {
+        "cost": 12,
+        "credits": 660,
+        "price_id": STRIPE_CONFIG["one_time_prices"]["tier3"]
+    },
+    "tier4": {
+        "cost": 24,
+        "credits": 1400,
+        "price_id": STRIPE_CONFIG["one_time_prices"]["tier4"]
+    },
+    "tier5": {
+        "cost": 48,
+        "credits": 3000,
+        "price_id": STRIPE_CONFIG["one_time_prices"]["tier5"]
     }
 }
 
 
 @router.post("/create-one-time-checkout-session")
 async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequest,user=Depends(verify_token)):
-    try:
+    try:        
         tier = purchase_request.tier
+                
         # Retrieve the one-time price ID and credits from the config
         config = ONE_TIME_PURCHASE_CONFIG.get(tier)
+                
         if not config:
             raise HTTPException(status_code=400, detail="Invalid purchase tier")
 
@@ -164,18 +173,18 @@ async def stripe_webhook(request: Request, stripe_signature: str = Header(None))
         if lines and "metadata" in lines[0]:
             metadata = lines[0]["metadata"]
             user_id = metadata.get("user_id")    
-            plan = metadata.get("plan")
+            tier = metadata.get("tier")
             credits = metadata.get("credits")
 
-        if not user_id or not plan or not credits:
+        if not user_id or not tier or not credits:
             logging.warning("⚠️ Missing metadata. Cannot update user subscription.")
         else:
             try:
                 credits = int(credits)
-                logging.info(f"🎯 Updating user {user_id}: Plan={plan}, Credits={credits}")
+                logging.info(f"🎯 Updating user {user_id}: Tier={tier}, Credits={credits}")
 
                 repo = ProfileRepository()
-                updated_sub = repo.update_user_subscription(user_id, plan)
+                updated_sub = repo.update_user_subscription(user_id, tier)
                 updated_credits = repo.update_user_credit(user_id, credits)
 
                 logging.info("✅ Supabase update response:", "updated_sub:", updated_sub, "updated_credits:", updated_credits)
