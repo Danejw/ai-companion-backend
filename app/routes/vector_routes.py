@@ -1,7 +1,9 @@
+import logging
 from fastapi import APIRouter, HTTPException, status
 from app.auth import verify_token
 from fastapi.params import Depends
 from app.supabase.pgvector import get_user_knowledge_vectors, get_user_slang_vectors, remove_user_knowledge, remove_user_slang
+from fastapi.responses import JSONResponse
 
 
 # Initialize the router
@@ -25,9 +27,9 @@ async def get_user_credits_route(limit: int = 10, user_id=Depends(verify_token))
                 "text": vector["knowledge_text"],
                 "last_updated": vector["last_updated"],
                 "mentions": vector["mention_count"]
-            })
-        
+            })    
         return response
+    
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -43,7 +45,7 @@ async def get_user_slang_vectors_route(limit: int = 10, user_id=Depends(verify_t
     try:
         user_id = user_id["id"]
         vectors = get_user_slang_vectors(user_id, limit)
-        
+                
         # Build a response with the id, text, and last_updated fields
         response = []
         for vector in vectors:
@@ -52,9 +54,9 @@ async def get_user_slang_vectors_route(limit: int = 10, user_id=Depends(verify_t
                 "text": vector["slang_text"],
                 "last_updated": vector["last_updated"],
                 "mentions": vector["mention_count"]
-            })
-        
+            })    
         return response
+        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

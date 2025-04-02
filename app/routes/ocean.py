@@ -18,12 +18,7 @@ class OceanUpdateRequest(BaseModel):
     agreeableness: float
     neuroticism: float
     
-class OceanAnalysisRequest(BaseModel):
-    message: str
     
-class OceanTraitsRequest(BaseModel):
-    user_id: str
-
 
 @router.post("/ocean-analyze")
 async def ocean_analyze(data: OceanRequest, user=Depends(verify_token)):
@@ -44,14 +39,14 @@ async def ocean_analyze(data: OceanRequest, user=Depends(verify_token)):
     }
 
 
-@router.get("/ocean")
-async def get_ocean(user=Depends(verify_token)):
+@router.get("/get-ocean")
+async def get_ocean(user=Depends(verify_token)) -> Ocean:
     user_id = user["id"]
     service = OceanAnalysisService(user_id)
     ocean_data = service.repository.get_ocean(user_id)
-
+    
     if ocean_data:
-        return ocean_data.dict()
+        return ocean_data
     else:
         return {"error": "No OCEAN data found for this user"}
     

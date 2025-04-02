@@ -136,16 +136,26 @@ def find_similar_slang(user_id: str, query: str, top_k=5):
 def get_user_knowledge_vectors(user_id: str, limit: int = 10):
     """
     Retrieves a list of knowledge vectors for a specific user.
+    Returns empty list if no vectors found.
     """
-    response = supabase.table("user_knowledge").select("*").eq("user_id", user_id).limit(limit).execute()
-    return response.data if response.data else {"message": "No knowledge vectors found for this user."}
+    try:
+        response = supabase.table("user_knowledge").select("*").eq("user_id", user_id).limit(limit).execute()
+        return response.data if response.data else []
+    except Exception as e:
+        logging.error(f"Error retrieving vectors for user {user_id}: {e}")
+        return []
 
 def get_user_slang_vectors(user_id: str, limit: int = 10):
     """
     Retrieves a list of slang vectors for a specific user.
+    Returns empty list if no vectors found.
     """
-    response = supabase.table("user_slang").select("*").eq("user_id", user_id).limit(limit).execute()
-    return response.data if response.data else {"message": "No slang vectors found for this user."}
+    try:
+        response = supabase.table("user_slang").select("*").eq("user_id", user_id).limit(limit).execute()
+        return response.data if response.data else []
+    except Exception as e:
+        logging.error(f"Error retrieving vectors for user {user_id}: {e}")
+        return []
 
 def remove_user_knowledge(user_id: str, knowledge_id: str):
     """

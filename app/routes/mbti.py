@@ -17,6 +17,13 @@ class MBTIUpdateRequest(BaseModel):
     thinking_feeling: float
     judging_perceiving: float
     
+class MBTIUpdateResponse(BaseModel):
+    type: str
+    extraversion_introversion: float
+    sensing_intuition: float
+    thinking_feeling: float
+    judging_perceiving: float
+    
 class MBTIAnalysisRequest(BaseModel):
     message: str
     
@@ -44,14 +51,22 @@ async def mbti_analyze(data: MBTIRequest, user=Depends(verify_token)):
     }
 
 
-@router.get("/mbti")
-async def get_mbti(user=Depends(verify_token)):
-    user_id =  user_id = user["id"] 
+@router.get("/get-mbti")
+async def get_mbti(user=Depends(verify_token)) -> MBTIUpdateResponse:
+    user_id = user["id"] 
     service = MBTIAnalysisService(user_id)
     mbti_data = service.repository.get_mbti(user_id)
+    
+    mbti_response = MBTIUpdateResponse(
+        type=service.get_mbti_type(),
+        extraversion_introversion=mbti_data.extraversion_introversion, 
+        sensing_intuition=mbti_data.sensing_intuition, 
+        thinking_feeling=mbti_data.thinking_feeling, 
+        judging_perceiving=mbti_data.judging_perceiving
+    )
 
     if mbti_data:
-        return mbti_data.dict()
+        return mbti_response
     else:
         return {"error": "No MBTI data found for this user"}
     
