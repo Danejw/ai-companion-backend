@@ -4,7 +4,7 @@ from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1/user"
 
 security = HTTPBearer()
@@ -19,7 +19,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     # 🔥 Verify with Supabase API (instead of manually decoding)
     headers = {
         "Authorization": f"Bearer {token}",
-        "apikey": SUPABASE_KEY
+        "apikey": SUPABASE_SERVICE_ROLE_KEY
     }
     response = requests.get(SUPABASE_AUTH_URL, headers=headers)
 

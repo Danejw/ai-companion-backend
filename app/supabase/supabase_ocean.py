@@ -7,7 +7,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 class Ocean(BaseModel):
     openness: float = 0.0
@@ -26,7 +26,7 @@ class OceanResponse(BaseModel):
 
 class OceanRepository:
     def __init__(self):
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         self.table_name = "ocean_personality"
 
     def get_ocean(self, user_id: str) -> Optional[Ocean]:

@@ -117,15 +117,4 @@ async def get_ocean(user_id: str = Depends(verify_token)):
         raise HTTPException(status_code=404, detail="No OCEAN data found for this user")
 
 
-# expose supabase keys to frontend
-@app.get("/config")
-async def get_config():
-    """
-    Securely provides frontend with Supabase keys.
-    """
-    return {
-        "SUPABASE_URL": os.getenv("SUPABASE_URL"),
-        "SUPABASE_KEY": os.getenv("SUPABASE_KEY"),
-        "STRIPE_PUBLIC_KEY": os.getenv("STRIPE_PUBLIC_KEY_TEST" if ENV == "development" else "STRIPE_PUBLIC_KEY_LIVE")
-    }
     

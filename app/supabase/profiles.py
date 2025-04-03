@@ -7,7 +7,7 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 class Profile(BaseModel):
     id: str
@@ -25,7 +25,7 @@ class ProfileRepository:
     for the profiles table.
     """
     def __init__(self):
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         self.table_name = "profiles"
 
     def get_user_email(self, user_id: str) -> Optional[str]:

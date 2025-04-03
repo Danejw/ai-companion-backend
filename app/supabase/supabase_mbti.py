@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 logging.basicConfig(level=logging.INFO)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 class MBTI(BaseModel):
     extraversion_introversion: float = 0.0
@@ -24,7 +24,7 @@ class MBTIRepository:
     for the MBTI data.
     """
     def __init__(self):
-        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
         self.table_name = "mbti_personality"  # Update if needed
 
     def get_mbti(self, user_id: str) -> Optional[MBTI]:
