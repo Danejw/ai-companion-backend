@@ -30,7 +30,7 @@ class MBTIRepository:
     def get_mbti(self, user_id: str) -> Optional[MBTI]:
         """
         Retrieves the MBTI record for a specific user from Supabase.
-        Returns an MBTI object or None if no record is found.
+        If none exists, creates a new default record and returns it.
         """
         try:
             response = self.supabase.table(self.table_name).select("*").eq("user_id", user_id).execute()
@@ -39,8 +39,19 @@ class MBTIRepository:
                 record = data[0]
                 return MBTI(**record)
             else:
-                logging.info(f"No MBTI record found for user_id: {user_id}")
-                return None
+                logging.info(f"No MBTI record found for user_id: {user_id}. Creating a new one.")
+                # Create a default MBTI record; ensure your MBTI model has default values set
+                new_mbti = MBTI()  # This uses defaults defined in your MBTI model
+                new_mbti_data = new_mbti.dict()
+                new_mbti_data["user_id"] = user_id
+                
+                insert_response = self.supabase.table(self.table_name).insert(new_mbti_data).execute()
+                if insert_response.data and len(insert_response.data) > 0:
+                    record = insert_response.data[0]
+                    return MBTI(**record)
+                else:
+                    logging.error(f"Failed to create MBTI record for user {user_id}.")
+                    return None
         except Exception as e:
             logging.error(f"Error fetching MBTI data for user {user_id}: {e}")
             return None

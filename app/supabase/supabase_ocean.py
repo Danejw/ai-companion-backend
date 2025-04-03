@@ -30,15 +30,32 @@ class OceanRepository:
         self.table_name = "ocean_personality"
 
     def get_ocean(self, user_id: str) -> Optional[Ocean]:
+        """
+        Get the OCEAN record for a user. If no record exists, create a new one.
+        """
         try:
+            # Try to retrieve the OCEAN record for the user
             response = self.supabase.table(self.table_name).select("*").eq("user_id", user_id).execute()
             data = response.data
             if data and len(data) > 0:
                 record = data[0]
                 return Ocean(**record)
             else:
-                logging.info(f"No OCEAN record found for user_id: {user_id}")
-                return None
+                logging.info(f"No OCEAN record found for user_id: {user_id}. Creating a new one.")
+                # Create a default OCEAN object; ensure your Ocean model has default values set.
+                new_ocean = Ocean()  # assumes defaults, e.g., all zeros and response_count=0
+                # Include the user_id in the inserted record:
+                new_ocean_data = new_ocean.dict()
+                new_ocean_data["user_id"] = user_id
+                
+                # Insert the new record into Supabase
+                insert_response = self.supabase.table(self.table_name).insert(new_ocean_data).execute()
+                if insert_response.data and len(insert_response.data) > 0:
+                    record = insert_response.data[0]
+                    return Ocean(**record)
+                else:
+                    logging.error(f"Failed to create OCEAN record for user {user_id}.")
+                    return None
         except Exception as e:
             logging.error(f"Error fetching OCEAN data for user {user_id}: {e}")
             return None
