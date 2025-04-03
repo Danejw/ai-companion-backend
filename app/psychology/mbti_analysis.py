@@ -132,10 +132,7 @@ class MBTIAnalysisService:
     def get_mbti_type(self) -> str:
         """
         Converts the current MBTI scores into a 4-letter type (E/I, S/N, T/F, J/P).
-        """
-        
-        print("MBTI Self: ", self.mbti)
-        
+        """        
         e_i = "E" if self.mbti.extraversion_introversion <= 0.5 else "I"
         s_n = "S" if self.mbti.sensing_intuition <= 0.5 else "N"
         t_f = "T" if self.mbti.thinking_feeling <= 0.5 else "F"
