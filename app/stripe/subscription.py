@@ -1,11 +1,10 @@
 # subscription.py
-import json
 import stripe
 import os
 import logging
-from fastapi import FastAPI, HTTPException, Request, Depends, APIRouter, Header
+from fastapi import HTTPException, Request, Depends, APIRouter, Header
 from pydantic import BaseModel
-from app.stripe.stripe_config import STRIPE_CONFIG, ENABLE_SUBSCRIPTIONS
+from app.stripe.stripe_config import STRIPE_CONFIG
 from app.auth import verify_token
 from app.supabase.profiles import ProfileRepository
 
