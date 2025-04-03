@@ -118,7 +118,7 @@ class MBTIAnalysisService:
         """
         Updates the rolling average for each dimension.
         """
-        old_count = self.mbti.response_count
+        old_count = self.mbti.message_count
         new_count = old_count + 1
 
         self.mbti.extraversion_introversion = ((self.mbti.extraversion_introversion * old_count) + new_mbti.extraversion_introversion) / new_count
@@ -126,7 +126,7 @@ class MBTIAnalysisService:
         self.mbti.thinking_feeling = ((self.mbti.thinking_feeling * old_count) + new_mbti.thinking_feeling) / new_count
         self.mbti.judging_perceiving = ((self.mbti.judging_perceiving * old_count) + new_mbti.judging_perceiving) / new_count
 
-        self.mbti.response_count = new_count
+        self.mbti.message_count = new_count
         logging.info(f"Updated MBTI rolling average for user {self.user_id}.")
 
     def get_mbti_type(self) -> str:

@@ -4,6 +4,7 @@ from typing import List, Optional
 from agents import Agent, Runner
 from app.supabase.pgvector import find_similar_knowledge, store_user_knowledge
 from pydantic import BaseModel
+from fastapi.concurrency import run_in_threadpool
 
 
 class KnowledgeScore(BaseModel):
@@ -57,7 +58,7 @@ class KnowledgeExtractionService:
                 return None
 
             result.metadata.timestamp = self.get_timestamp()
-            await self.store_knowledge(result)
+            await run_in_threadpool(self.store_knowledge, result)
             return result
         except Exception as e:
             logging.error(f"Error extracting knowledge: {e}")

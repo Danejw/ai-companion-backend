@@ -91,7 +91,7 @@ async def update_mbti(data: MBTIUpdateRequest, user=Depends(verify_token)):
         sensing_intuition=data.sensing_intuition,
         thinking_feeling=data.thinking_feeling,
         judging_perceiving=data.judging_perceiving,
-        response_count=1  # This will be updated in the rolling average function
+        message_count=1  # This will be updated in the rolling average function
     )
 
     # Apply rolling average update
