@@ -76,18 +76,26 @@ ONE_TIME_PURCHASE_CONFIG = {
 
 @router.post("/create-one-time-checkout-session")
 async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequest,user=Depends(verify_token)):
-    try:        
+    try:
+        logging.info("Purchase Request: %s", purchase_request)
+        
         tier = purchase_request.tier
-                
+        
+        logging.info("Tier: %s", tier)
         # Retrieve the one-time price ID and credits from the config
         config = ONE_TIME_PURCHASE_CONFIG.get(tier)
-                
+        
+        logging.info("Config: %s", config)
+        
         if not config:
             raise HTTPException(status_code=400, detail="Invalid purchase tier")
 
         price_id = config["price_id"]
         credits = config["credits"]
-
+        
+        logging.info("Credits: %s", credits)
+        logging.info("Price ID: %s", price_id)
+        
         success_url = os.getenv("STRIPE_SUCCESS_URL")
         cancel_url = os.getenv("STRIPE_CANCEL_URL")
         
@@ -110,6 +118,9 @@ async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequ
                 "credits": credits
             }
         )
+        
+        logging.info("Session: %s", session)
+        logging.info("Session ID: %s", session.id)
         
         return {"sessionId": session.id}
     except Exception as e:
