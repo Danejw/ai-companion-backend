@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 import os
 from dotenv import load_dotenv
@@ -6,16 +7,22 @@ app = FastAPI()
 
 load_dotenv()
 
+# Configure logging at the start of the file
+logging.basicConfig(
+    level=logging.ERROR,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
 
 # 🔥 Define allowed origins based on the environment
-ENV = os.getenv("ENV", "development")  # Default to development
+ENV = os.getenv("ENV")
 
 if ENV == "development":
     ALLOWED_ORIGINS = ["*"]  # ✅ Allow all origins in development
 else:
-    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "https://your-production-site.com").split(",")
+    ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
 
 
 app.add_middleware(

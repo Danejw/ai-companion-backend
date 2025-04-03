@@ -29,6 +29,5 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user_data = response.json()
-    print(f"✅ User Verified: {user_data}")
     
     return user_data  # ✅ Return the user details
