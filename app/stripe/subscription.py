@@ -88,6 +88,12 @@ async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequ
         price_id = config["price_id"]
         credits = config["credits"]
 
+        success_url = os.getenv("STRIPE_SUCCESS_URL")
+        cancel_url = os.getenv("STRIPE_CANCEL_URL")
+        
+        logging.info("Success URL: %s", success_url)
+        logging.info("Cancel URL: %s", cancel_url)
+
         # Create a one-time Checkout Session in payment mode
         session = stripe.checkout.Session.create(
             payment_method_types=['card'],
@@ -96,14 +102,15 @@ async def create_one_time_checkout_session(purchase_request: OneTimePurchaseRequ
                 'quantity': 1,
             }],
             mode='payment',  # one-time payment
-            success_url=os.getenv("STRIPE_SUCCESS_URL"),
-            cancel_url=os.getenv("STRIPE_CANCEL_URL"),
+            success_url=success_url,
+            cancel_url=cancel_url,
             metadata={
                 "user_id": user["id"],
                 "tier": tier,
                 "credits": credits
             }
         )
+        
         return {"sessionId": session.id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
