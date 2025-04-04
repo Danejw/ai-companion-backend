@@ -24,7 +24,6 @@ stripe.api_version = '2025-02-24.acacia'
 secret_key = STRIPE_CONFIG["secret_key"]
 stripe.api_key = secret_key
 
-logging.info(f"STRIPE_CONFIG: {secret_key}")
 
 public_key = STRIPE_CONFIG["publishable_key"]
 logging.info(f"STRIPE_PUBLIC_KEY: {public_key}")
