@@ -25,10 +25,6 @@ secret_key = STRIPE_CONFIG["secret_key"]
 stripe.api_key = secret_key
 
 
-public_key = STRIPE_CONFIG["publishable_key"]
-logging.info(f"STRIPE_PUBLIC_KEY: {public_key}")
-
-
 # Subscription plan configurations
 PLAN_CONFIG = {
     "basic": {

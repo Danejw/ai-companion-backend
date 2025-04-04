@@ -10,7 +10,7 @@ app = FastAPI()
 
 # Configure logging at the start of the file
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -19,14 +19,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # 🔥 Define allowed origins based on the environment
 ENV = os.getenv("ENV")
-logging.info(f"ENV: {ENV}")
-
-
-if ENV == "development":
-    STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY_TEST")
-else:
-    STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY_LIVE")
-logging.info(f"STRIPE_KEY: {STRIPE_PUBLIC_KEY}")
 
 if ENV == "development":
     ALLOWED_ORIGINS = ["*"]  # ✅ Allow all origins in development
