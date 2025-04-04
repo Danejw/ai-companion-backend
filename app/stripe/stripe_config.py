@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Load environment variable for environment (default to development)
-ENV = os.getenv("ENV", "development").lower()
+ENV = os.getenv("ENV").lower()
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 # Toggle subscription functionality (could be used to turn on/off subscription flows)
@@ -14,7 +14,8 @@ ENABLE_SUBSCRIPTIONS = os.getenv("ENABLE_SUBSCRIPTIONS", "true").lower() == "tru
 if ENV == "development":
     STRIPE_PUBLIC_KEY = os.getenv("STRIPE_PUBLIC_KEY_TEST")
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY_TEST")
-    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET_TEST") # os.getenv("STRIPE_WEBHOOK_SECRET_CLI")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET_TEST") 
+    # os.getenv("STRIPE_WEBHOOK_SECRET_CLI")
     
     STRIPE_PRICE_BASIC = os.getenv("STRIPE_PRICE_BASIC_TEST")
     STRIPE_PRICE_STANDARD = os.getenv("STRIPE_PRICE_STANDARD_TEST")
@@ -65,4 +66,3 @@ STRIPE_CONFIG = {
     },
     "webhook_url": os.getenv("STRIPE_WEBHOOK_URL", f"{BASE_URL}/app/stripe/webhook")
 }
-

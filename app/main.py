@@ -3,8 +3,10 @@ from fastapi import FastAPI, HTTPException, Request, Depends
 import os
 from dotenv import load_dotenv
 
-
+# Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
+from app.stripe.stripe_config import STRIPE_CONFIG
+
 
 app = FastAPI()
 
@@ -20,11 +22,15 @@ from fastapi.middleware.cors import CORSMiddleware
 # 🔥 Define allowed origins based on the environment
 ENV = os.getenv("ENV")
 
+
+print("🔐 Env: ", ENV)
+
 if ENV == "development":
     ALLOWED_ORIGINS = ["*"]  # ✅ Allow all origins in development
 else:
     ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
-    
+
+
 
 
 app.add_middleware(
