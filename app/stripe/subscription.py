@@ -24,10 +24,6 @@ stripe.api_version = '2025-02-24.acacia'
 secret_key = STRIPE_CONFIG["secret_key"]
 stripe.api_key = secret_key
 
-webhook_secret = STRIPE_CONFIG["webhook_secret"]
-logging.info("Webhook Secret: %s", webhook_secret)
-
-
 
 
 # Subscription plan configurations

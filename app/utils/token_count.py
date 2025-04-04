@@ -95,8 +95,8 @@ def count_tokens(text: str) -> int:
         # Fallback or default logic if needed, e.g., estimate based on chars/words
         return len(text) // 4 # Very rough estimate everthing is 4 characters
     
-def calculate_provider_cost(text: str, model: str = "gpt-4o-mini") -> float:
-    """Calculates the cost of tokens for a given text and model."""
+def calculate_provider_cost(input_text: str ="", output_text: str ="", model: str = "gpt-4o-mini") -> float:
+    """Calculates the cost of tokens for a given input and output text and model."""
     global LLM_PRICING_USD_PER_TOKEN
     try:
         if model not in LLM_PRICING_USD_PER_TOKEN:
@@ -104,8 +104,8 @@ def calculate_provider_cost(text: str, model: str = "gpt-4o-mini") -> float:
             model = "DEFAULT_FALLBACK"
             
         pricing = LLM_PRICING_USD_PER_TOKEN[model]
-        input_tokens = count_tokens(text)
-        output_tokens = count_tokens(text)
+        input_tokens = count_tokens(input_text)
+        output_tokens = count_tokens(output_text)
         cost = (pricing["prompt"] * input_tokens) + (pricing["completion"] * output_tokens)
         return cost
     except Exception as e:

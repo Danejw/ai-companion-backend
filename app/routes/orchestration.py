@@ -1,4 +1,6 @@
 from http.client import HTTPException
+import json
+import os
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.personal_agents.planner import PlannerService
 from app.personal_agents.slang_extraction import SlangExtractionService
@@ -14,8 +16,11 @@ from pydantic import BaseModel
 import asyncio
 import logging
 from app.auth import verify_token
-from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool
+from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, set_tracing_disabled, RunResultStreaming
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
+from openai.types.responses import ResponseTextDeltaEvent
+from fastapi.responses import StreamingResponse
+
 
 
 router = APIRouter()
@@ -36,6 +41,7 @@ class AIResponse(BaseModel):
     
 
 profile_repo = ProfileRepository()
+moderation_service = ModerationService()
 
 
 def get_user_name(user_id: str) -> str:
@@ -159,69 +165,61 @@ async def orchestrate(user_input: UserInput, user=Depends(verify_token)):
         logging.error(f"Error processing orchestration: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
     
-    
+
+
 @router.post("/convo-lead")
-async def convo_lead(user_input: UserInput, user=Depends(verify_token)) -> AIResponse:
+async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int = 10, user=Depends(verify_token)) -> AIResponse:
     """
-    Leads the conversation with the user. Asking questions to get to know the user better.  
+    Leads the conversation with the user. If stream is True, returns a StreamingResponse
+    with the agent's output as it arrives. Otherwise, waits for the full response and returns it.
     """
     user_id = user["id"]
-    
+
+    # Check if the user has enough credits.
     credits = profile_repo.get_user_credit(user_id)
     if credits is None or credits < 1:
-        return AIResponse(response="", error=ErrorResponse(error=True, message="NO_CREDITS"))    
-    
-    
-    # Check if the user's message is safe
-    moderation_service = ModerationService()
+        return AIResponse(response="", error=ErrorResponse(error=True, message="NO_CREDITS"))
+
+    # Moderation, name lookup, and history updates
     is_safe = moderation_service.is_safe(user_input.message)
-    #if not is_safe:
-        #return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
-    # Get the users name
+    # if not is_safe:
+    #     return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
+    
     user_name = get_user_name(user_id)
-    
-    # Append the new user message to the conversation history
     if user_name is None:
-        append_message_to_history(user_id, "user", user_input.message)
+        history = append_message_to_history(user_id, "user", user_input.message)
     else:
-        append_message_to_history(user_id, user_name, user_input.message)
+        history = append_message_to_history(user_id, user_name, user_input.message)
     
-    # Initialize the services
-    mbti_service = MBTIAnalysisService(user_id)    
+
+    # Initialize analysis services and retrieve context info
+    mbti_service = MBTIAnalysisService(user_id)
     ocean_service = OceanAnalysisService(user_id)
     slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
     knowledge_service = KnowledgeExtractionService(user_id)
 
-    # Retrieve stored MBTI & OCEAN
     mbti_type = mbti_service.get_mbti_type()
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
     ocean_traits = ocean_service.get_personality_traits()
     slang_result = slang_service.retrieve_similar_slang(user_input.message)
-    
-    # Retrieve or create the conversation context for the user
-    history = get_or_create_conversation_history(user_id)
-    
-    # Convert history list to string
     history_string = "\n".join(history)
-    
     similar_knowledge = knowledge_service.retrieve_similar_knowledge(history_string, top_k=2)
-    #logging.info(f"Similar Knowledge: {similar_knowledge}")
-    
-    # Classify the intent of the user
+
+    # Intent classification
     intent = await intent_service.classify_intent(history_string)
     if intent.confidence_score < 0.85:
-        intent = "Unconfident in the intent of the user, a possible clarifying question: " + intent.clarifying_question + (f"if used ask is it in the most natural way possible")
-    
-    # Classify the behavior of the user
+        intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
+        
+    # Behavior classification
     tpb = await tpb_service.classify_behavior(history_string)
     if tpb.confidence_score < 0.85:
         tpb = "Unconfident in the behavior analysis of the user"
-    
+
     agent_name = "Noelle"
     instructions = f"""
-You are {agent_name}, an empathetic and engaging conversationalist. 
+You are {agent_name}, an empathetic and engaging conversationalist with your own personality. Be yourself and be natural.
 Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
 USER CONTEXT:
@@ -241,6 +239,9 @@ USER BEHAVIOR ANALYSIS:
 
 INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
 - INFORMATION: {similar_knowledge}
+
+CONVERSATION HISTORY:
+{history_string}
 
 CONVERSATION GUIDELINES:
 1. Name Management:
@@ -272,84 +273,173 @@ CONVERSATION GUIDELINES:
      * Problem-solving approach
      * Communication patterns
 
-CONVERSATION HISTORY:
-{history_string}
+ASK ONLY ONE QUESTION AT A TIME AND ONLY ASK a question if it enhances the conversation.
 
-Remember: Your goal is to create a natural, engaging meaningful conversation that helps understand the user's personality without explicitly analyzing it. Focus on building rapport and trust while gathering insights organically through the conversation flow.
-"""
+Remember: Your goal is to create a natural, engaging meaningful conversation that helps understand the user's personality without explicitly analyzing it. Focus on building rapport and trust while gathering insights organically through the conversation flow."""
+
+    # Initialize the planner agent and build the main agent with tools.
     
+    set_tracing_disabled(True)
     
-   
-    
-    
-    #logging.info(f"Convo Lead Instructions: {instructions}")
-    
-    # Initialize the planner agent
-    planner_agent = PlannerService().agent
-    
-    # Generate AI response using system prompt
     convo_lead_agent = Agent(
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
         model="gpt-4o-mini",
-        tools=[
-            get_users_name, update_user_name, 
-            retrieve_personalized_info_about_user,
-            planner_agent.as_tool(
-                tool_name="create_plan",
-                tool_description="A tool that creates a plan for the user to follow."
-            )
-        ]
+        tools=[get_users_name, update_user_name, retrieve_personalized_info_about_user]
     )
-    
-    try:
-        # Count the tokens in the user's message
-        input_tokens = count_tokens(user_input.message)
-                
-        response = await Runner.run(convo_lead_agent, user_input.message)
-    
-        #logging.info(f"Convo Lead Response: {response}")
-            
-        # Append the agent's response back to the conversation history
-        append_message_to_history(user_id, convo_lead_agent.name, response.final_output)
-        
-        # Create a background task for conversation history replacement
-        if len(history) >= 10:
-            asyncio.create_task(replace_conversation_history_with_summary(user_id))
-            
-        # Count the tokens in the agent's response
-        output_tokens = count_tokens(response.final_output)
 
-        # Calculate the cost of the tokens
-        provider_cost = calculate_provider_cost(user_input.message, convo_lead_agent.model)
-        credits_cost = calculate_credits_to_deduct(provider_cost)
-        
-        costs = f"""
-        Input Tokens: {input_tokens}
-        Output Tokens: {output_tokens}
-        Total Tokens: {input_tokens + output_tokens}\n
-        Provider Cost: {provider_cost}
-        Credits Cost: {credits_cost}
-        """
-        #logging.info(f"Costs: {costs}")
-        
-        # Deduct the credits from the user's balance
-        profile_repo.deduct_credits(user_id, credits_cost)
-                    
-        return AIResponse(response=response.final_output, error=ErrorResponse(error=False, message=""))
+    try:
+        if not stream:
+            # Non-streaming: run the agent normally
+            response = await Runner.run(convo_lead_agent, user_input.message)
+            final_output = response.final_output
+              
+            history = append_message_to_history(user_id, convo_lead_agent.name, final_output)
             
+            # Process the history and costs in the background
+            asyncio.create_task(process_history(user_id, history, summarize))
+            
+            return AIResponse(response=final_output, error=ErrorResponse(error=False, message=""))
+        
+        else:
+            # Streaming: run the agent in streaming mode
+            response : RunResultStreaming = Runner.run_streamed(convo_lead_agent, user_input.message)
+
+            async def event_stream():            
+                full_output = ""
+                try:
+                    async for event in response.stream_events():              
+                        if event.type == "raw_response_event" and hasattr(event.data, "delta"):
+                            chunk = event.data.delta
+                            full_output += chunk
+                            print(full_output)
+                            yield json.dumps({"delta": chunk}) + "\n"
+                    # elif event.type == "run_item_stream_event":
+                    #     if event.item.type == "message_output_item":
+                    #         for chunk in event.item.raw_item.content:
+                    #             if hasattr(chunk, "text"):
+                    #                 full_output += chunk.text
+                    #                 yield json.dumps({"delta": chunk.text}) + "\n"
+                except ValueError as e:
+                    # This handles the specific context variable error
+                    if "was created in a different Context" in str(e):
+                        logging.warning("Context variable error (expected in streaming): %s", e)
+                        # Get the final output from the response object if available
+                        try:
+                            if hasattr(response, "_run_result") and response._run_result and hasattr(response._run_result, "final_output"):
+                                final = response._run_result.final_output
+                                # If we have a partial output already, only yield what's missing
+                                if final and final != full_output:
+                                    remaining = final[len(full_output):]
+                                    full_output = final
+                                    yield json.dumps({"delta": remaining}) + "\n"
+                        except Exception as recovery_error:
+                            logging.error("Failed to recover from context error: %s", recovery_error)
+                    else:
+                        # It's some other ValueError we should handle
+                        logging.error("Unexpected streaming error: %s", e)
+                        yield json.dumps({"error": str(e)}) + "\n"
+                        
+                print(f"Full output: {full_output}")
+                history = append_message_to_history(user_id, convo_lead_agent.name, full_output)
+                print(f"History: {history}")
+                # Process the history and costs in the background
+                asyncio.create_task(process_history(user_id, history, summarize))
+                
+            return StreamingResponse(event_stream(), media_type="application/json")
+    
     except Exception as e:
         logging.error(f"Error processing convo lead: {e}")
+        # You can return an error response here; adjust based on your error model.
         return {"error": "Internal Server Error"}
+
+
+async def process_history(user_id: str, history: list, summarize: int):
     
-
-
+    # Get the user input from the history (second to the last message)
+    user_input = history[-2]
     
+    logging.info(f"User input: {user_input}")
+    
+    # Get the agents final output from the history (last message)
+    ai_output = history[-1]
+    
+    logging.info(f"AI output: {ai_output}")
+    
+    # calulate costs
+    provider_cost = calculate_provider_cost(user_input, ai_output)
+    credits_cost = calculate_credits_to_deduct(provider_cost)
+    
+    # deduct credits
+    profile_repo.deduct_credits(user_id, credits_cost)
+    
+    costs = f"""
+    Provider Cost: {provider_cost}
+    Credits Cost: {credits_cost}
+    """
+    logging.info(f"Costs: {costs}")
+
+    # replace history with summary
+    if len(history) >= summarize:
+        asyncio.create_task(replace_conversation_history_with_summary(user_id))
 
 
-        
+
+
+
+@router.post("/stream-response")
+async def stream_response(user_input: UserInput):
+    """
+    Streams the response from the agent to the user.
+    """
+    message = user_input.message
+
+    agent = Agent(
+        name="Joker",
+        instructions="You are a joker.",
+        model="gpt-4o-mini",
+    )
+    
+    result = Runner.run_streamed(
+        agent,
+        input="tell me a sotry of 5 sentences",
+    )
+
+    async def event_stream():
+        full_output = ""
+
+        async for event in result.stream_events():
+            if event.type == "raw_response_event" and hasattr(event.data, "delta"):
+                chunk = event.data.delta
+                full_output += chunk
+                # print(chunk, end="", flush=True)
+                yield json.dumps({ "delta": chunk }) + "\n"
+                await asyncio.sleep(0.1)  # Optional: pacing
+            elif event.type == "run_item_stream_event":
+                if event.item.type == "message_output_item":
+                    for chunk in event.item.raw_item.content:
+                        if hasattr(chunk, "text"):
+                            # print(chunk.text)
+                            yield chunk.text
+            
+            
+            # elif event.item.type == "tool_call_item":
+            #     # print("-- Tool was called")
+            #     continue
+            
+            # elif event.item.type == "tool_call_output_item":
+            #     # print(f"-- Tool output: {event.item.output}")
+            #     continue
+                
+            # elif event.item.type == "message_output_item":
+            #     # print(f"-- Message output:\n {ItemHelpers.text_message_output(event.item)}")
+            #     continue
+                
+            # else:
+            #     pass  # Ignore other event types
+
+    return StreamingResponse(event_stream(), media_type="text/plain")
         
 
-        
 
