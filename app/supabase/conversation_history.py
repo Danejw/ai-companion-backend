@@ -161,7 +161,7 @@ async def replace_conversation_history_with_summary(user_id: str) -> list[Messag
 
         # Create the summarization agent.
         summarization_agent = Agent(
-            name="Summarizer",
+            name="Summary",
             handoff_description="An agent that summarizes conversation context.",
             instructions=instructions,
             model="gpt-4o-mini",
@@ -176,8 +176,8 @@ async def replace_conversation_history_with_summary(user_id: str) -> list[Messag
         
         # Create a new Message object with the summary
         summary_message = Message(
-            role="system", 
-            content=f"Summary: {summary_content}", 
+            role=summarization_agent.name, 
+            content=summary_content, 
             created_at=datetime.now()
         )
         
