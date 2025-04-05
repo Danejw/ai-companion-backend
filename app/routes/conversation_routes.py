@@ -3,22 +3,24 @@ from typing import List
 
 from fastapi.params import Depends
 from app.auth import verify_token
-from app.supabase.conversation_history import get_or_create_conversation_history
+from app.supabase.conversation_history import get_or_create_conversation_history, Message
 
 # Initialize the router
 router = APIRouter()
 
-@router.get("/history")
+@router.get("/history", response_model=List[Message])
 async def get_conversation_history_route(user_id=Depends(verify_token)):
     """
     Retrieves the full conversation history for a specific user.
     If no history exists, a new record is created (if configured) and an empty list is returned.
+    
+    Returns:
+        List[Message]: A list of Message objects containing role, content, and timestamp
     """
     try:
         user_id = user_id["id"]
         history = get_or_create_conversation_history(user_id)
-        # The function already handles creation and returns [] on error/not found,
-        # so we can directly return the result.
+        # The function now returns list[Message] objects
         return history
     except Exception as e:
         # Catch any unexpected errors during the process

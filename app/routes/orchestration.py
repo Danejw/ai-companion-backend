@@ -8,7 +8,7 @@ from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
 from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
-from app.supabase.conversation_history import append_message_to_history, get_or_create_conversation_history, replace_conversation_history_with_summary
+from app.supabase.conversation_history import Message, append_message_to_history, get_or_create_conversation_history, replace_conversation_history_with_summary
 from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
 from fastapi import APIRouter, Depends
@@ -204,7 +204,7 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
     ocean_traits = ocean_service.get_personality_traits()
     slang_result = slang_service.retrieve_similar_slang(user_input.message)
-    history_string = "\n".join(history)
+    history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     similar_knowledge = knowledge_service.retrieve_similar_knowledge(history_string, top_k=2)
 
     # Intent classification
@@ -313,7 +313,6 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
                         if event.type == "raw_response_event" and hasattr(event.data, "delta"):
                             chunk = event.data.delta
                             full_output += chunk
-                            print(full_output)
                             yield json.dumps({"delta": chunk}) + "\n"
                     # elif event.type == "run_item_stream_event":
                     #     if event.item.type == "message_output_item":
@@ -341,9 +340,8 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
                         logging.error("Unexpected streaming error: %s", e)
                         yield json.dumps({"error": str(e)}) + "\n"
                         
-                print(f"Full output: {full_output}")
                 history = append_message_to_history(user_id, convo_lead_agent.name, full_output)
-                print(f"History: {history}")
+
                 # Process the history and costs in the background
                 asyncio.create_task(process_history(user_id, history, summarize))
                 
@@ -355,19 +353,21 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
         return {"error": "Internal Server Error"}
 
 
-async def process_history(user_id: str, history: list, summarize: int):
+async def process_history(user_id: str, history: list[Message], summarize: int):
     
     # Get the user input from the history (second to the last message)
-    user_input = history[-2]
+    user_message = history[-2]
+    user_input = user_message.content
     
     logging.info(f"User input: {user_input}")
     
     # Get the agents final output from the history (last message)
-    ai_output = history[-1]
+    ai_message = history[-1]
+    ai_output = ai_message.content
     
     logging.info(f"AI output: {ai_output}")
     
-    # calulate costs
+    # calculate costs
     provider_cost = calculate_provider_cost(user_input, ai_output)
     credits_cost = calculate_credits_to_deduct(provider_cost)
     
