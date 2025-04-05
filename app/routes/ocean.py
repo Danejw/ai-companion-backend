@@ -3,13 +3,13 @@ from app.supabase.supabase_ocean import Ocean
 from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel
 from app.psychology.ocean_analysis import OceanAnalysisService
-
+from app.supabase.conversation_history import Message
 
 router = APIRouter()
 
 
 class OceanRequest(BaseModel):
-    message: str
+    history: list[Message]
     
 class OceanUpdateRequest(BaseModel):
     openness: float
@@ -22,13 +22,18 @@ class OceanUpdateRequest(BaseModel):
 
 @router.post("/ocean-analyze")
 async def ocean_analyze(data: OceanRequest, user=Depends(verify_token)):
-    message = data.message
     user_id = user["id"]
+    
+    # Filter to get only messages from this user
+    user_messages = [msg for msg in data.history if msg.user_id == user_id]
+    
+    # Convert the history to a string
+    history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in user_messages])
 
     # Create a new analysis service for this user
     service = OceanAnalysisService(user_id)
     # Perform the analysis
-    await service.analyze_message(message)
+    await service.analyze_message(history_string)
 
     # Get personality traits
     traits = service.get_personality_traits()

@@ -3,13 +3,13 @@ from fastapi import APIRouter, Request, Depends
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from pydantic import BaseModel
 from app.auth import verify_token
-
+from app.supabase.conversation_history import Message
 
 router = APIRouter()
 
 
 class MBTIRequest(BaseModel):
-    message: str
+    history: list[Message]
     
 class MBTIUpdateRequest(BaseModel):
     extraversion_introversion: float
@@ -35,13 +35,18 @@ class MBTITypeRequest(BaseModel):
 
 @router.post("/mbti-analyze")
 async def mbti_analyze(data: MBTIRequest, user=Depends(verify_token)):
-    message = data.message
     user_id =  user_id = user["id"] 
+    
+    # Filter to get only messages from this user
+    user_messages = [msg for msg in data.history if msg.user_id == user_id]
+    
+    # Convert the history to a string
+    history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in user_messages])
     
     # Create a new analysis service for this user
     service = MBTIAnalysisService(user_id)
     # Perform the analysis
-    await service.analyze_message(message)
+    await service.analyze_message(history_string)
 
     # Get final MBTI type
     final_type = service.get_mbti_type()

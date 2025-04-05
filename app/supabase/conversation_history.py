@@ -4,6 +4,7 @@ from datetime import datetime
 import os
 import json
 import logging
+from typing import Optional
 
 from pydantic import BaseModel
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
@@ -33,13 +34,15 @@ class Message(BaseModel):
     role: str
     content: str
     created_at: datetime
+    user_id: Optional[str] = None
     
     def model_dump_json(self) -> str:
         """Convert Message to JSON string for storage"""
         return json.dumps({
             "role": self.role,
             "content": self.content,
-            "created_at": self.created_at.isoformat()
+            "created_at": self.created_at.isoformat(),
+            "user_id": self.user_id
         })
     
     @staticmethod
@@ -48,7 +51,8 @@ class Message(BaseModel):
         return Message(
             role=data["role"],
             content=data["content"],
-            created_at=datetime.fromisoformat(data["created_at"])
+            created_at=datetime.fromisoformat(data["created_at"]),
+            user_id=data["user_id"]
         )
 
  
@@ -66,7 +70,7 @@ def get_or_create_conversation_history(user_id: str) -> list[Message]:
     try:
         response = supabase.table("conversation_history").select("history").eq("user_id", user_id).execute()
         data = response.data
-        
+                
         if data and len(data) > 0:
             logging.info(f"Retrieved history for user {user_id}")
             # Convert JSON representations to Message objects
@@ -76,10 +80,7 @@ def get_or_create_conversation_history(user_id: str) -> list[Message]:
         else:
             logging.info(f"No conversation history found for user {user_id}. Creating new record.")
             # Insert a new record with an empty history for the user
-            insert_response = supabase.table("conversation_history").insert({
-                "user_id": user_id,
-                "history": []
-            }).execute()
+            insert_response = supabase.table("conversation_history").insert({"user_id": user_id, "history": []}).execute()
             logging.info(f"New conversation history record created for user {user_id}.")
             return []
     except Exception as e:
@@ -106,7 +107,7 @@ def append_message_to_history(user_id: str, role: str, content: str) -> list[Mes
     # Retrieve the current history.
     history = get_or_create_conversation_history(user_id)
     # Create a new Message object with the current timestamp
-    new_message = Message(role=role, content=content, created_at=datetime.now())
+    new_message = Message(role=role, content=content, created_at=datetime.now(), user_id=user_id)
     history.append(new_message)
     update_conversation_history(user_id, history)
     return history
@@ -129,9 +130,13 @@ async def replace_conversation_history_with_summary(user_id: str, extract: bool 
     """
     try:
         history = get_or_create_conversation_history(user_id)
-        # Convert Message objects to a string for analysis
-        history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
         
+        # get all message from history that match the user_id
+        history_string = [msg for msg in history if msg.user_id == user_id]
+        
+        # Convert the history to a string
+        history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history_string])
+
         if extract:
             # Extract knowledge from the history.
             extraction = KnowledgeExtractionService(user_id)
