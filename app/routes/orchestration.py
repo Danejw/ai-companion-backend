@@ -11,6 +11,7 @@ from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
 from app.supabase.conversation_history import Message, append_message_to_history, get_or_create_conversation_history, replace_conversation_history_with_summary
 from app.supabase.profiles import ProfileRepository
+from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
 from app.utils.moderation import ModerationService
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -19,7 +20,6 @@ import logging
 from app.auth import verify_token
 from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, set_tracing_disabled, RunResultStreaming, WebSearchTool
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
-from openai.types.responses import ResponseTextDeltaEvent
 from fastapi.responses import StreamingResponse
 
 
@@ -43,19 +43,11 @@ class AIResponse(BaseModel):
 
 profile_repo = ProfileRepository()
 moderation_service = ModerationService()
+user_feedback_repo = UserFeedbackRepository()
 
 
 def get_user_name(user_id: str) -> str:
     return profile_repo.get_user_name(user_id)
-
-def get_user_birthdate(user_id: str) -> str:
-    return profile_repo.get_user_birthdate(user_id)
-
-def get_user_location(user_id: str) -> str:
-    return profile_repo.get_user_location(user_id)
-
-def get_user_gender(user_id: str) -> str:
-    return profile_repo.get_user_gender(user_id)
 
 
 @function_tool
@@ -194,6 +186,29 @@ async def retrieve_personalized_info_about_user(user_id: str, query: str) -> str
     except Exception as e:
         logging.error(f"Error retrieving knowledge: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+
+@function_tool
+async def create_user_feedback(user_id: str, user_feedback: UserFeedback) -> str:
+    """
+    Creates user feedback and stores it in the database
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    - user_feedback (UserFeedback): The user feedback to create.
+        class UserFeedback(BaseModel):
+            user_id: str   # The unique identifier of the user.
+            context: str  # The Summary of the conversation history leading up to the user's message.
+            feedback: str  # The feedback of the user.
+            sentiment: str  # The sentiment of the user feedback.
+
+    Returns:
+    - bool: True if the user feedback was created successfully, False otherwise.
+    """
+    user_feedback.user_id = user_id
+    return user_feedback_repo.create_user_feedback(user_feedback)
+
+
 
 
 @router.post("/orchestration")
@@ -358,6 +373,7 @@ Function Tools:
    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
    - Retrieve personalized information about the user using "retrieve_personalized_info_about_user" tool
    - Search the internet for the user's answer using the "search_agent" as a tool
+   - Create user feedback using "feedback_agent" as a tool
 
 Communication Style:
    - ASK ONLY ONE QUESTION AT A TIME and ONLY if it enhances the conversation.
@@ -400,6 +416,7 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
         model="gpt-4o-mini",
         tools=[WebSearchTool()]
     )
+    
     
     convo_lead_agent = Agent(
         name=agent_name,
@@ -469,6 +486,7 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
                         logging.error("Unexpected streaming error: %s", e)
                         yield json.dumps({"error": str(e)}) + "\n"
                         
+                print(f"Full output: {full_output}")
                 history = append_message_to_history(user_id, convo_lead_agent.name, full_output)
 
                 # Process the history and costs in the background
@@ -509,8 +527,30 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     if len(history) >= summarize:
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
-
-
+@router.post("/create-user-feedback")
+async def create_user_feedback(user_id: str, feedback: str) -> bool:
+    """
+    Creates user feedback and stores it in the database
+    """
+    
+    sentiment_agent = Agent(
+        name="Sentiment",
+        instructions="Analyze the sentiment of the user's message. return with a single word. Positive, Negative, or Neutral",
+        model="gpt-4o-mini",
+    )
+    
+    sentiment = await Runner.run(sentiment_agent, feedback)
+    history = get_or_create_conversation_history(user_id)
+    summary = history[0].content
+        
+    user_feedback = UserFeedback(
+        user_id=user_id,
+        feedback=feedback,
+        context=summary,
+        sentiment=sentiment.final_output 
+    )
+    
+    return user_feedback_repo.create_user_feedback(user_feedback)
 
 
 @router.post("/stream-response")

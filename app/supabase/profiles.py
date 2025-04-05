@@ -1,11 +1,9 @@
-from datetime import datetime
 import os
 import logging
-from typing import Optional, List
+from typing import Optional
 from supabase import create_client, Client
 from pydantic import BaseModel
 
-logging.basicConfig(level=logging.INFO)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
