@@ -26,3 +26,18 @@ async def get_user_credits_route(user_id=Depends(verify_token)):
         )
     return {"user_id": user_id, "credits": credits}
 
+
+@router.get("/profile")
+async def get_user_profile_route(user_id=str): #=Depends(verify_token)):
+    """
+    Retrieves the profile for a specific user.
+    """
+    #user_id = user_id["id"]
+    repo = ProfileRepository()
+    profile = repo.get_profile(user_id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find profile for user with id {user_id}"
+        )
+    return profile

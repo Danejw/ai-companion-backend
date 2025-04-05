@@ -170,7 +170,7 @@ async def replace_conversation_history_with_summary(user_id: str, extract: bool 
             name="Summary",
             handoff_description="An agent that summarizes conversation context.",
             instructions=instructions,
-            model="gpt-4o-mini",
+            model= "gpt-4o-mini",
         )
 
         # Construct the prompt with the conversation history.

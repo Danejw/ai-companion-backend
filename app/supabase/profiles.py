@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import logging
 from typing import Optional, List
@@ -17,7 +18,11 @@ class Profile(BaseModel):
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
     subscription: Optional[str] = None
-    credit: Optional[int] = None
+    credits: Optional[int] = None
+    birthdate: Optional[str] = None
+    location: Optional[str] = None
+    gender: Optional[str] = None
+
 
 class ProfileRepository:
     """
@@ -218,4 +223,99 @@ class ProfileRepository:
         except Exception as e:
             logging.error(f"Failed to increment credits for user {user_id}: {e}")
             raise
+
+    def get_user_birthdate(self, user_id: str) -> Optional[str]:
+        """
+        Retrieves the birthdate from the profile record in Supabase.
+        Returns the birthdate or None if no record is found.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("birthdate").eq("id", user_id).execute()
+            data = response.data
+            if data and len(data) > 0:
+                return data[0]["birthdate"]
+            else:
+                logging.info(f"No profile record found for user_id: {user_id}")
+                return None
+        except Exception as e:
+            logging.error(f"Error fetching birthdate for user_id: {user_id}: {e}")
+            return None
+
+    def update_user_birthdate(self, user_id: str, birthdate: str) -> bool:
+        """
+        Updates the birthdate of the user in the profile record in Supabase.
+        Returns True if update was successful, False otherwise.
+        """
+        try:
+            response = self.supabase.table(self.table_name).update({"birthdate": birthdate}).eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error updating birthdate for user_id: {user_id}: {e}")
+            return False
+
+    def get_user_location(self, user_id: str) -> Optional[str]:
+        """
+        Retrieves the location from the profile record in Supabase.
+        Returns the location or None if no record is found.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("location").eq("id", user_id).execute()
+            data = response.data
+            if data and len(data) > 0:
+                return data[0]["location"]
+            else:
+                logging.info(f"No profile record found for user_id: {user_id}")
+                return None
+        except Exception as e:
+            logging.error(f"Error fetching location for user_id: {user_id}: {e}")
+            return None
+
+    def update_user_location(self, user_id: str, location: str) -> bool:
+        """
+        Updates the location of the user in the profile record in Supabase.
+        Returns True if update was successful, False otherwise.
+        """
+        try:
+            response = self.supabase.table(self.table_name).update({"location": location}).eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error updating location for user_id: {user_id}: {e}")
+            return False
+
+    def get_user_gender(self, user_id: str) -> Optional[str]:
+        """
+        Retrieves the gender from the profile record in Supabase.
+        Returns the gender or None if no record is found.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("gender").eq("id", user_id).execute()
+            data = response.data
+            if data and len(data) > 0:
+                return data[0]["gender"]
+            else:
+                logging.info(f"No profile record found for user_id: {user_id}")
+                return None
+        except Exception as e:
+            logging.error(f"Error fetching gender for user_id: {user_id}: {e}")
+            return None
+        
+    def update_user_gender(self, user_id: str, gender: str) -> bool:
+        """
+        Updates the gender of the user in the profile record in Supabase.
+        Returns True if update was successful, False otherwise.
+        """
+        try:
+            response = self.supabase.table(self.table_name).update({"gender": gender}).eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error updating gender for user_id: {user_id}: {e}")
+            return False
+
+
+
+
+
+
+
+
 

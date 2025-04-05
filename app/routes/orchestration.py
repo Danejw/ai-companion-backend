@@ -1,3 +1,4 @@
+import datetime
 from http.client import HTTPException
 import json
 import os
@@ -16,7 +17,7 @@ from pydantic import BaseModel
 import asyncio
 import logging
 from app.auth import verify_token
-from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, set_tracing_disabled, RunResultStreaming
+from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, set_tracing_disabled, RunResultStreaming, WebSearchTool
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
 from openai.types.responses import ResponseTextDeltaEvent
 from fastapi.responses import StreamingResponse
@@ -47,6 +48,16 @@ moderation_service = ModerationService()
 def get_user_name(user_id: str) -> str:
     return profile_repo.get_user_name(user_id)
 
+def get_user_birthdate(user_id: str) -> str:
+    return profile_repo.get_user_birthdate(user_id)
+
+def get_user_location(user_id: str) -> str:
+    return profile_repo.get_user_location(user_id)
+
+def get_user_gender(user_id: str) -> str:
+    return profile_repo.get_user_gender(user_id)
+
+
 @function_tool
 def get_users_name(user_id: str) -> str:
     """
@@ -61,9 +72,50 @@ def get_users_name(user_id: str) -> str:
     return profile_repo.get_user_name(user_id)
 
 
+@function_tool
+def get_user_birthdate(user_id: str) -> str:
+    """
+    Retrieves the birthdate of the user from the profile repository.
+
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+
+    Returns:
+    - datetime.date: the birthdate of the user
+    """
+    return profile_repo.get_user_birthdate(user_id)
+
 
 @function_tool
-def update_user_name(user_id: str, name: str) -> str:
+def get_user_location(user_id: str) -> str:
+    """
+    Retrieves the location of the user from the profile repository.
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    
+    Returns:
+    - str: the location of the user
+    """
+    return profile_repo.get_user_location(user_id)
+
+
+@function_tool
+def get_user_gender(user_id: str) -> str:
+    """
+    Retrieves the gender of the user from the profile repository.
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    
+    Returns:
+    - str: the gender of the user
+    """
+    return profile_repo.get_user_gender(user_id)
+
+
+@function_tool
+def update_user_name(user_id: str, name: str) -> bool:
     """
     Updates the user's name in the profile repository.
 
@@ -72,9 +124,55 @@ def update_user_name(user_id: str, name: str) -> str:
     - name (str): The new name to update for the user.
 
     Returns:
-    - str: the names of the user
+    - bool: True if the update was successful, False otherwise.
     """ 
     return profile_repo.update_user_name(user_id, name)
+
+
+@function_tool
+def update_user_birthdate(user_id: str, birthdate: str) -> bool:
+    """
+    Updates the user's birthdate in the profile repository.
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    - birthdate (datetime.date): The new birthdate to update for the user.
+
+    Returns:
+    - bool: True if the update was successful, False otherwise.
+    """
+    return profile_repo.update_user_birthdate(user_id, birthdate)
+
+
+@function_tool
+def update_user_location(user_id: str, location: str) -> bool:
+    """
+    Updates the user's location in the profile repository.
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    - location (str): The new location to update for the user.
+
+    Returns:
+    - bool: True if the update was successful, False otherwise.
+    """
+    return profile_repo.update_user_location(user_id, location)
+
+
+@function_tool
+def update_user_gender(user_id: str, gender: str) -> bool:
+    """
+    Updates the user's gender in the profile repository.    
+    
+    Parameters:
+    - user_id (str): The unique identifier of the user.
+    - gender (str): The new gender to update for the user.
+
+    Returns:
+    - bool: True if the update was successful, False otherwise.
+    """
+    return profile_repo.update_user_gender(user_id, gender)
+
 
 @function_tool
 async def retrieve_personalized_info_about_user(user_id: str, query: str) -> str:
@@ -244,12 +342,24 @@ CONVERSATION HISTORY:
 {history_string}
 
 CONVERSATION GUIDELINES:
-1. Name Management:
+USER Management:
    - If user's name is not available, ask for it naturally
-   - Once received, update it using "update_user_name" tool
    - Use their name occasionally but don't overuse it
+   - If the user gives their name, birthday, location, gender, or any other information, update it using the corresponding function tool
+   
+Function Tools:
+   - Get the user's name using "get_users_name" tool
+   - if the user gives their name, automatically update the user's name using "update_user_name" tool
+   - Get the user's birthdate using "get_user_birthdate" tool
+   - if the user gives their birthdate, automatically update the user's birthdate using "update_user_birthdate" tool
+   - Get the user's location using "get_user_location" tool
+   - if the user gives their location, automatically update the user's location using "update_user_location" tool
+   - Get the user's gender using "get_user_gender" tool
+   - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
+   - Retrieve personalized information about the user using "retrieve_personalized_info_about_user" tool
+   - Search the internet for the user's answer using the "search_agent" as a tool
 
-2. Communication Style:
+Communication Style:
    - ASK ONLY ONE QUESTION AT A TIME and ONLY if it enhances the conversation.
    - Keep language at a 5th grade level
    - Match the user's communication style, language, vocabulary, and energy
@@ -259,13 +369,13 @@ CONVERSATION GUIDELINES:
    - Avoid technical terms or jargon
    - NEVER MENTION MBTI OR OCEAN ANALYSIS IN YOUR RESPONSES.
 
-3. Response Format:
+Response Format:
    - Write in plain text (no markdown)
    - Keep responses concise, insightful, and engaging
    - Include appropriate emotional expressions, and slangs
    - Make natural transitions between topics
 
-4. Personality Assessment:
+Personality Assessment:
    - Observe and adapt to user's:
      * Decision-making style
      * Social interaction preferences
@@ -281,12 +391,31 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
     
     set_tracing_disabled(True)
     
+
+    search_agent = Agent(
+        name="Search",
+        handoff_description="A search agent.",
+        instructions=
+            "Search the internet for the user's answer.",
+        model="gpt-4o-mini",
+        tools=[WebSearchTool()]
+    )
+    
     convo_lead_agent = Agent(
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini",
-        tools=[get_users_name, update_user_name, retrieve_personalized_info_about_user]
+        model="gpt-4o-mini", #"o3-mini",
+        tools=[get_users_name, update_user_name,
+               get_user_birthdate, update_user_birthdate,
+               get_user_location, update_user_location,
+               get_user_gender, update_user_gender,
+               retrieve_personalized_info_about_user,
+               search_agent.as_tool(
+                   tool_name="web_search",
+                   tool_description="Search the internet for the user's answer."
+               )
+        ]
     )
 
     try:
@@ -358,15 +487,11 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     # Get the user input from the history (second to the last message)
     user_message = history[-2]
     user_input = user_message.content
-    
-    logging.info(f"User input: {user_input}")
-    
+        
     # Get the agents final output from the history (last message)
     ai_message = history[-1]
     ai_output = ai_message.content
-    
-    logging.info(f"AI output: {ai_output}")
-    
+        
     # calculate costs
     provider_cost = calculate_provider_cost(user_input, ai_output)
     credits_cost = calculate_credits_to_deduct(provider_cost)
@@ -374,11 +499,11 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     # deduct credits
     profile_repo.deduct_credits(user_id, credits_cost)
     
-    costs = f"""
-    Provider Cost: {provider_cost}
-    Credits Cost: {credits_cost}
-    """
-    logging.info(f"Costs: {costs}")
+    # costs = f"""
+    # Provider Cost: {provider_cost}
+    # Credits Cost: {credits_cost}
+    # """
+    #logging.info(f"Costs: {costs}")
 
     # replace history with summary
     if len(history) >= summarize:
