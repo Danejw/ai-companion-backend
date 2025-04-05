@@ -168,7 +168,7 @@ async def orchestrate(user_input: UserInput, user=Depends(verify_token)):
 
 
 @router.post("/convo-lead")
-async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int = 10, user=Depends(verify_token)) -> AIResponse:
+async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int = 10, extract: bool = True, user=Depends(verify_token)) -> AIResponse:
     """
     Leads the conversation with the user. If stream is True, returns a StreamingResponse
     with the agent's output as it arrives. Otherwise, waits for the full response and returns it.
@@ -298,7 +298,7 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
             history = append_message_to_history(user_id, convo_lead_agent.name, final_output)
             
             # Process the history and costs in the background
-            asyncio.create_task(process_history(user_id, history, summarize))
+            asyncio.create_task(process_history(user_id, history, summarize, extract))
             
             return AIResponse(response=final_output, error=ErrorResponse(error=False, message=""))
         
@@ -353,7 +353,7 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
         return {"error": "Internal Server Error"}
 
 
-async def process_history(user_id: str, history: list[Message], summarize: int):
+async def process_history(user_id: str, history: list[Message], summarize: int = 10, extract: bool = True):
     
     # Get the user input from the history (second to the last message)
     user_message = history[-2]
@@ -382,7 +382,7 @@ async def process_history(user_id: str, history: list[Message], summarize: int):
 
     # replace history with summary
     if len(history) >= summarize:
-        asyncio.create_task(replace_conversation_history_with_summary(user_id))
+        asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
 
 
