@@ -40,6 +40,9 @@ class AIResponse(BaseModel):
     response: str
     error: ErrorResponse
     
+class FeedbackRequest(BaseModel):
+    feedback: str
+    
 
 profile_repo = ProfileRepository()
 moderation_service = ModerationService()
@@ -528,24 +531,24 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
 @router.post("/create-user-feedback")
-async def create_user_feedback(user_id: str, feedback: str) -> bool:
+async def create_user_feedback(feedback: FeedbackRequest, user=Depends(verify_token)) -> bool:
     """
     Creates user feedback and stores it in the database
     """
-    
+    user_id = user["id"]
     sentiment_agent = Agent(
         name="Sentiment",
         instructions="Analyze the sentiment of the user's message. return with a single word. Positive, Negative, or Neutral",
         model="gpt-4o-mini",
     )
     
-    sentiment = await Runner.run(sentiment_agent, feedback)
+    sentiment = await Runner.run(sentiment_agent, feedback.feedback)
     history = get_or_create_conversation_history(user_id)
     summary = history[0].content
         
     user_feedback = UserFeedback(
         user_id=user_id,
-        feedback=feedback,
+        feedback=feedback.feedback,
         context=summary,
         sentiment=sentiment.final_output 
     )
