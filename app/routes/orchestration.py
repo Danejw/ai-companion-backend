@@ -489,7 +489,6 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
                         logging.error("Unexpected streaming error: %s", e)
                         yield json.dumps({"error": str(e)}) + "\n"
                         
-                print(f"Full output: {full_output}")
                 history = append_message_to_history(user_id, convo_lead_agent.name, full_output)
 
                 # Process the history and costs in the background
