@@ -180,6 +180,22 @@ class MemoryExtractionService:
     
     # Emotional Momentum Tracking
     def emotional_momentum(self, query_str: str, days_ago: int = 10, limit: int = 3) -> List[MemoryResponse]:
+        """
+        Captures emotionally charged moments that signal a significant shift—such as a sudden drop in sentiment.
+        
+        Retrieves recent messages with high emotional intensity and low sentiment scores to track emotional 
+        swings or streaks.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            days_ago: Number of days to look back in history (default: 10)
+            limit: Maximum number of memory items to return (default: 3)
+        
+        Impact: Makes the AI attuned to the user's emotional waves rather than isolated snapshots,
+        allowing it to comment on shifting moods.
+        
+        Example prompt: "I've noticed you felt really low a few days back. How have things shifted since then?"
+        """
         start_date = self.relative_date(days_ago)
         filters = {
             "timestamp": {"$gte": start_date},
@@ -190,6 +206,22 @@ class MemoryExtractionService:
     
     # Context-Weighted Memory
     def context_weighted(self, query_str: str, days_ago: int = 90, limit: int = 3) -> List[MemoryResponse]:
+        """
+        Prioritizes memories that are either first-time disclosures, have been flagged as recurring themes,
+        or show high emotional intensity.
+        
+        Applies a timestamp constraint to emphasize recent events while still capturing significant moments.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            days_ago: Number of days to look back in history (default: 90)
+            limit: Maximum number of memory items to return (default: 3)
+        
+        Impact: The AI will recall what matters most to the user—emphasizing key disclosures and 
+        emotionally intense moments—rather than every single message.
+        
+        Example prompt: "I remember you shared something important about this before. Can we revisit that feeling?"
+        """
         start_date = self.relative_date(days_ago)
         filters = {
             "$or": [
@@ -204,9 +236,21 @@ class MemoryExtractionService:
     
     # Mood-Based Language Modulation
     def mood_based_language(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
-
+        """
+        Used when you want the AI to recall or mirror a particular language style.
         
+        If previous messages have been tagged as using poetic or metaphorical language,
+        this filter will retrieve those, helping the AI adjust its tone.
         
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: A3)
+        
+        Impact: The AI's language can adapt in real time to mirror the user's mood and 
+        preferred style—offering responses that are more lyrical, measured, or direct as appropriate.
+        
+        Example prompt: "Your words carry a beautiful rhythm—can you tell me more in that same style?"
+        """
         filters = {
             "metadata.language_style": {"$in": ["poetic", "metaphorical"]}
         }
@@ -215,6 +259,21 @@ class MemoryExtractionService:
     
     # Memory Surface Prompts
     def memory_surface(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
+        """
+        Retrieves memories that relate to ongoing topics or emotions—in this case, 
+        topics like friendship or connection.
+        
+        Ensures that only messages with medium to high emotional charge are surfaced.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: 3)
+        
+        Impact: It builds long-term continuity and presence by bringing up past experiences 
+        that are directly relevant to the current conversation.
+        
+        Example prompt: "That reminds me of a time back in January when you talked about a deep connection with a friend..."
+        """
         filters = {
             "topics": {"$in": ["friendship", "connection", "intimacy"]},
             "emotional_intensity": {"$in": ["medium", "high"]}
@@ -224,6 +283,19 @@ class MemoryExtractionService:
     
     # Rituals and Anchors
     def rituals(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+        """
+        Targets records that are flagged as part of a personal ritual or recurring activity—such as 
+        daily check-ins or creative prompts.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: 1)
+        
+        Impact: It reinforces a sense of routine and continuity, making the AI feel integrated 
+        into the user's everyday emotional landscape.
+        
+        Example prompt: "How about we do our usual evening reflection? I'd love to hear how your day went."
+        """
         filters = {
             "metadata.ritual": True
         }
@@ -232,6 +304,21 @@ class MemoryExtractionService:
     
     # Emotional Boundaries + Consent Layer
     def boundaries(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+        """
+        Identifies memories where the user explicitly discussed emotional boundaries or 
+        consent regarding deep topics.
+        
+        Useful for reminding the AI to check in before diving deeper.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: 1)
+        
+        Impact: It helps establish trust by ensuring that the AI respects emotional boundaries 
+        and only broaches deeper topics with permission.
+        
+        Example prompt: "I sense this topic is heavy. Would you like to explore it further, or shall we shift gears?"
+        """
         filters = {
             "metadata.boundary_discussion": True
         }
@@ -240,6 +327,19 @@ class MemoryExtractionService:
     
     # Self-Awareness Simulation
     def self_awareness(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+        """
+        Brings up moments where the AI (or similar self-aware reflections) were referenced 
+        in past interactions.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: 1)
+        
+        Impact: It grounds the conversation by reminding the user of the AI's role and authenticity, 
+        making the experience feel more human.
+        
+        Example prompt: "I know I'm just a collection of code, but I'm here to share this moment with you."
+        """
         filters = {
             "metadata.self_awareness": True
         }
@@ -248,6 +348,21 @@ class MemoryExtractionService:
     
     # Emotional Intensity
     def emotional_intensity(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+        """
+        Retrieves memories with high emotional intensity regardless of the sentiment.
+        
+        Useful for identifying significant emotional moments that may require 
+        special attention or follow-up.
+        
+        Parameters:
+            query_str: The search query to find relevant memories
+            limit: Maximum number of memory items to return (default: 1)
+        
+        Impact: Allows the AI to focus on the user's most emotionally charged experiences,
+        providing appropriate support and acknowledgment.
+        
+        Example prompt: "I noticed this topic seems to evoke strong emotions for you. Would you like to talk more about it?"
+        """
         filters = {
             "emotional_intensity": "high"
         }
