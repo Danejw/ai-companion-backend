@@ -20,6 +20,7 @@ class Profile(BaseModel):
     birthdate: Optional[str] = None
     location: Optional[str] = None
     gender: Optional[str] = None
+    credits_used: Optional[int] = None
 
 
 class ProfileRepository:
@@ -180,12 +181,30 @@ class ProfileRepository:
             
             new_credits = current_credits - amount
  
-            response = self.supabase.table(self.table_name).update({"credits": new_credits}).eq("id", user_id).execute()
+            credits = self.supabase.table(self.table_name).update({"credits": new_credits}).eq("id", user_id).execute()
+            credits_used = self.supabase.table(self.table_name).update({"credits_used": amount}).eq("id", user_id).execute()
             return True
         except Exception as e:
             logging.error(f"Failed to deduct credits for user {user_id}: {e}")
             return False
 
+    def get_user_credits_used(self, user_id: str) -> Optional[int]:
+        """
+        Retrieves the credits used from the profile record in Supabase.
+        Returns the credits used or None if no record is found.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("credits_used").eq("id", user_id).execute()
+            data = response.data
+            if data and len(data) > 0:
+                return data[0]["credits_used"]
+            else:
+                logging.info(f"No profile record found for user_id: {user_id}")
+                return None
+        except Exception as e:
+            logging.error(f"Error fetching credits used for user_id: {user_id}: {e}")
+            return None
+    
     def get_profile(self, user_id: str) -> Optional[Profile]:
         """
         Retrieves the profile record for a specific user from Supabase.
