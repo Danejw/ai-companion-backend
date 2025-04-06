@@ -46,6 +46,7 @@ from app.routes.realtime import realtime_router
 from app.routes.mbti import router as mbti_router
 from app.routes.ocean import router as ocean_router
 from app.routes.knowledge import router as knowledge_router
+from app.routes.memory_extraction_routes import router as memory_extraction_router
 from app.routes.orchestration import router as orchestration_router
 from app.stripe.subscription import router as stripe_router
 from app.routes.slang import router as slang_router
@@ -71,6 +72,7 @@ app.include_router(theory_planned_behavior_router, prefix="/tpb", tags=["Theory 
 app.include_router(profiles_router, prefix="/profiles", tags=["Profiles"])
 app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
 app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
+app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"

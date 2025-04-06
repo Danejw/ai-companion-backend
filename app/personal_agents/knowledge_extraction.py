@@ -1,6 +1,6 @@
 import datetime
 import logging
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from agents import Agent, Runner
 from app.supabase.pgvector import find_similar_knowledge, store_user_knowledge
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ class KnowledgeResult(BaseModel):
     metadata: KnowledgeMetadata
 
 
+
 instructions = (
     "You are an AI that extracts useful knowledge from user interactions. "
     "Before extracting knowledge, check if the message contains any valuable personal information, preferences, or facts about the user. "
@@ -37,7 +38,7 @@ class KnowledgeExtractionService:
         self.user_id = user_id
         self.extraction_agent = Agent(
             name="KnowledgeExtractor",
-            handoff_description="An agent that extracts knowledge from user interactions.",
+            handoff_description="An agent that extracts valuable information about the user from your interactions.",
             instructions=instructions,
             model="gpt-4o-mini",
             output_type=KnowledgeResult
