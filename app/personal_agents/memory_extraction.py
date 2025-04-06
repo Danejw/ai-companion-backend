@@ -11,23 +11,14 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from supabase import create_client
 from app.supabase.pgvector import generate_embedding
+from app.utils.match_filter import MemoryFilter
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-
-
-class MemoryMetadata(BaseModel):
-    disclosure: bool
-    recurring_theme: bool
-    boundary_discussion: bool
-    ritual: bool
-    self_awareness: bool
-    language_style: str
-    
+ 
     
 class MemoryVector(BaseModel):
     text: str
@@ -36,7 +27,12 @@ class MemoryVector(BaseModel):
     topics: List[str]
     emotional_intensity: str
     importance: float
-    metadata: MemoryMetadata
+    disclosure: bool
+    recurring_theme: bool
+    boundary_discussion: bool
+    ritual: bool
+    self_awareness: bool
+    language_style: str
     
 
 class MemoryResponse(BaseModel):
@@ -91,25 +87,26 @@ class MemoryExtractionService:
             instructions=instructions,
             model="gpt-4o-mini",
             output_type=MemoryVector,
-            # tools=[
-            #     self.emotional_momentum,
-            #     self.context_weighted,
-            #     self.mood_based_language,
-            #     self.memory_surface,
-            #     self.rituals,
-            #     self.boundaries,
-            #     self.self_awareness,
-            #     self.emotional_intensity
-            # ]
+            tools=[
+                self.emotional_momentum,
+                self.context_weighted,
+                self.mood_based_language,
+                self.memory_surface,
+                self.rituals,
+                self.boundaries,
+                self.self_awareness,
+                self.emotional_intensity,
+                self.get_latest_messages,
+                self.topics
+            ]
         )
         
         
     def get_timestamp(self) -> datetime:
         return datetime.now()
     
-    def relative_date(self, days_ago: int) -> str:
-        target_date = self.get_timestamp() - timedelta(days=days_ago)
-        return target_date.isoformat() #+ "Z"
+    def relative_date(self, days_ago: int) -> datetime:
+        return self.get_timestamp() - timedelta(days=days_ago)
 
     def generate_embeddings(self, text: str):
         return generate_embedding(text)
@@ -164,29 +161,13 @@ class MemoryExtractionService:
             return False
     
     # Main function to search the vector database
-    def vector_search(self, query_str: str, filters: dict = None, limit: int = 3) -> List[MemoryResponse]:
+    def vector_search(self, query_str: str, limit: int = 30) -> List[MemoryResponse]:
         """
         Accepts a query string, computes its embedding, and then queries the vector DB with the given filters.
         """
         try:
-            query_vector = self.generate_embeddings(query_str)
-            
-            if filters:
-            # Use containedBy operator for JSON comparison instead of eq
-            # filtered_response = supabase.table("user_knowledge") \
-            #     .select("*") \
-            #     .eq("user_id", self.user_id) \
-            #     .filter("metadata", "cs", '{"topics": ["art"]}') \
-            #     .execute()
-            
-                response = supabase.rpc("find_similar_memories_with_filter", {
-                            "input_user_id": self.user_id,
-                            "input_filter": filters,
-                            "query_embedding": query_vector,
-                            "top_k": limit
-                        }).execute()
-            
-            
+            query_vector = self.generate_embeddings(query_str)      
+            response = supabase.rpc("find_similar_memories", {"input_user_id": self.user_id, "query_embedding": query_vector, "top_k": limit}).execute()
             return response.data
         except Exception as e:
             logging.error(f"Error vector searching: {e}")
@@ -206,9 +187,9 @@ class MemoryExtractionService:
     # ---------------------------------------------------------------------------------
     
     
-        # Emotional Intensity
-    #@function_tool
-    def emotional_intensity(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
+    # Emotional Intensity
+    @function_tool
+    def emotional_intensity(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Retrieves memories with high emotional intensity regardless of the sentiment.
         
@@ -224,16 +205,17 @@ class MemoryExtractionService:
         
         Example prompt: "I noticed this topic seems to evoke strong emotions for you. Would you like to talk more about it?"
         """
-        filters = {"emotional_intensity": "high"}
+
+        results = self.vector_search(query_str, limit)
         
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Emotional Intensity Results: {results}")
-        return results
+        filtered_results = MemoryFilter().match("emotional_intensity", "high").apply(results)
 
-
+        logging.info(f"Filtered Emotional Intensity Results: {filtered_results}")
+        return filtered_results
 
     # Get the latest 10 messages from the user
-    def get_latest_messages(self, query_str: str, days_ago: int = 10, limit: int = 10) -> List[MemoryResponse]:
+    @function_tool
+    def get_latest_messages(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Retrieves the latest messages based on a starting timestamp.
         
@@ -245,17 +227,19 @@ class MemoryExtractionService:
         This function computes a start date relative to the current time,
         builds a filter to only include messages newer than that date, and then
         performs a vector search using those filters.
-        """
-        start_date = self.relative_date(days_ago)
-        print(f"Start Date: {start_date}")
-        filters = {
-            "timestamp": {"$gte": start_date}
-        }
-        return self.vector_search(query_str, filters, limit)
+        """  
+        results = self.vector_search(query_str, limit)
+                
+        filtered_results = MemoryFilter() \
+            .less_than_or_equal("timestamp", datetime.now().isoformat()) \
+            .sort_by_date("desc") \
+            .apply(results)
+
+        return filtered_results
     
-    # TODO:Emotional Momentum Tracking
-    #@function_tool
-    def emotional_momentum(self, query_str: str, days_ago: int = 10, limit: int = 3) -> List[MemoryResponse]:
+    # Emotional Momentum Tracking
+    @function_tool
+    def emotional_momentum(self, query_str: str,limit: int = 10) -> List[MemoryResponse]:
         """
         Captures emotionally charged moments that signal a significant shift—such as a sudden drop in sentiment.
         
@@ -272,19 +256,21 @@ class MemoryExtractionService:
         
         Example prompt: "I've noticed you felt really low a few days back. How have things shifted since then?"
         """
-        start_date = self.relative_date(days_ago)
-        filters = {
-            "timestamp": {"$gte": start_date},
-            "emotional_intensity": "high",
-            "sentiment_score": {"$lte": -0.7}
-        }
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Emotional Momentum Results: {results}")
-        return results
+        results = self.vector_search(query_str, limit)
+        
+        # TODO : Add date filter
+        
+        filtered_results = MemoryFilter() \
+            .match("emotional_intensity", "high") \
+            .less_than_or_equal("sentiment_score", -0.7) \
+            .apply(results)
+        
+        logging.info(f"Emotional Momentum Results: {filtered_results}")
+        return filtered_results
     
     # TODO: Context-Weighted Memory
     #@function_tool
-    def context_weighted(self, query_str: str, days_ago: int = 90, limit: int = 3) -> List[MemoryResponse]:
+    def context_weighted(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Prioritizes memories that are either first-time disclosures, have been flagged as recurring themes,
         or show high emotional intensity.
@@ -301,21 +287,19 @@ class MemoryExtractionService:
         
         Example prompt: "I remember you shared something important about this before. Can we revisit that feeling?"
         """
-        start_date = self.relative_date(days_ago)
-        
-        filters = {
-                "metadata" : {"disclosure": False },
-                "metadata" : {"recurring_theme": False },
-                "emotional_intensity": "high"
-        }
+        results = self.vector_search(query_str, limit)
+                
+        filtered_results = MemoryFilter() \
+            .match("disclosure", True) \
+            .greater_than_or_equal("importance", 0.7) \
+            .apply(results)
 
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Context-Weighted Results: {results}")
-        return results
+        logging.info(f"FilteredContext-Weighted Results: {filtered_results}")
+        return filtered_results
         
     # TODO: Mood-Based Language Modulation
     #@function_tool
-    def mood_based_language(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
+    def mood_based_language(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Used when you want the AI to recall or mirror a particular language style.
         
@@ -331,16 +315,18 @@ class MemoryExtractionService:
         
         Example prompt: "Your words carry a beautiful rhythm—can you tell me more in that same style?"
         """
-        filters = {
-            "metadata": {"language_style": {"cs": ["poetic", "metaphorical"]}}
-        }
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Mood-Based Language Results: {results}")
-        return results
+        results = self.vector_search(query_str, limit)
+        
+        filtered_results = MemoryFilter() \
+            .match("language_style", "poetic") \
+            .apply(results)
+        
+        logging.info(f"Mood-Based Language Results: {filtered_results}")
+        return filtered_results
     
     # TODO: Memory Surface Prompts
     #@function_tool
-    def memory_surface(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
+    def memory_surface(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Retrieves memories that relate to ongoing topics or emotions—in this case, 
         topics like friendship or connection.
@@ -356,17 +342,20 @@ class MemoryExtractionService:
         
         Example prompt: "That reminds me of a time back in January when you talked about a deep connection with a friend..."
         """
-        filters = {
-            #"topics": {"$in": ["friendship", "connection", "intimacy"]},
-            "emotional_intensity": {"$in": ["medium", "high"]}
-        }
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Memory Surface Results: {results}")
-        return results
+        results = self.vector_search(query_str, limit)
+        
+        filtered_results = MemoryFilter() \
+            .match("ritual", True) \
+            .match("emotional_intensity", "medium") \
+            .greater_than_or_equal("importance", 0.7) \
+            .apply(results)
+            
+        logging.info(f"Memory Surface Results: {filtered_results}")
+        return filtered_results
     
     # Rituals and Anchors
     #@function_tool
-    def rituals(self, query_str: str, limit: int = 3) -> List[MemoryResponse]:
+    def rituals(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Targets records that are flagged as part of a personal ritual or recurring activity—such as 
         daily check-ins or creative prompts.
@@ -380,15 +369,18 @@ class MemoryExtractionService:
         
         Example prompt: "How about we do our usual evening reflection? I'd love to hear how your day went."
         """
-        filters = { "metadata" : { "ritual" : True } }
+        results = self.vector_search(query_str, limit)
         
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Rituals Results: {results}")
-        return results
+        filtered_results = MemoryFilter() \
+            .match("ritual", True) \
+            .apply(results)
+
+        logging.info(f"FilteredRituals Results: {filtered_results}")
+        return filtered_results
     
     # Emotional Boundaries + Consent Layer
     @function_tool
-    def boundaries(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+    def boundaries(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Identifies memories where the user explicitly discussed emotional boundaries or 
         consent regarding deep topics.
@@ -403,16 +395,19 @@ class MemoryExtractionService:
         and only broaches deeper topics with permission.
         
         Example prompt: "I sense this topic is heavy. Would you like to explore it further, or shall we shift gears?"
-        """
-        filters = { "metadata" : { "boundary_discussion" : True } }
+        """        
+        results = self.vector_search(query_str, limit)
         
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Boundaries Results: {results}")
-        return results
+        filtered_results = MemoryFilter() \
+            .match("boundary_discussion", True) \
+            .apply(results)
+
+        logging.info(f"Boundaries Results: {filtered_results}")
+        return filtered_results
     
-    # Self-Awareness Simulation
+    # Self-Awareness
     @function_tool
-    def self_awareness(self, query_str: str, limit: int = 1) -> List[MemoryResponse]:
+    def self_awareness(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
         """
         Brings up moments where the AI (or similar self-aware reflections) were referenced 
         in past interactions.
@@ -425,10 +420,34 @@ class MemoryExtractionService:
         making the experience feel more human.
         
         Example prompt: "I know I'm just a collection of code, but I'm here to share this moment with you."
-        """
-        filters = { "metadata" : { "self_awareness": True } }
+        """        
+        results = self.vector_search(query_str, limit)
         
-        results = self.vector_search(query_str, filters, limit)
-        logging.info(f"Self-Awareness Results: {results}")
-        return results
+        filtered_results = MemoryFilter() \
+            .match("self_awareness", True) \
+            .apply(results)
+
+        logging.info(f"Self-Awareness Results: {filtered_results}")
+        return filtered_results
      
+     
+    def topics(self, query_str: str, limit: int = 10) -> List[MemoryResponse]:
+        """
+        Retrieves memories that are tagged with a specific topic.
+        
+        Parameters:
+            query_str: The search query to find relevant memories   
+            limit: Maximum number of memory items to return (default: 10)
+        
+        Impact: It helps the AI understand the user's interests and preferences, 
+        allowing it to provide more relevant responses.
+        
+        Example prompt: "I remember you mentioned this topic before. Can we revisit that?"
+        """
+        results = self.vector_search(query_str, limit)
+        
+        filtered_results = MemoryFilter() \
+            .contains_any("topics", ["work", "stress"]) \
+            .apply(results)
+        
+        return filtered_results

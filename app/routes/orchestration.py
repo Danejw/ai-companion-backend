@@ -426,7 +426,7 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini", #"o3-mini",
+        model="gpt-4o", #"o3-mini",
         tools=[get_users_name, update_user_name,
                get_user_birthdate, update_user_birthdate,
                get_user_location, update_user_location,

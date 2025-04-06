@@ -61,7 +61,7 @@ def get_latest_messages(user_id:str, request: str):
     memory_service = MemoryExtractionService(user_id)
     memories = memory_service.get_latest_messages(request)
     return memories
-    
+
 
 @router.post("/emotional-momentum")
 def emotional_momentum(user_id:str, request: str):
@@ -142,3 +142,11 @@ def emotional_intensity(user_id:str, request: str):
     memories = memory_service.emotional_intensity(request)
     return memories
 
+@router.post("/topics")
+def topics(user_id:str, request: str):
+    """
+    Retrieves topics memories from the given message.
+    """
+    memory_service = MemoryExtractionService(user_id)
+    memories = memory_service.topics(request)
+    return memories
