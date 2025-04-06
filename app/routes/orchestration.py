@@ -3,6 +3,7 @@ from http.client import HTTPException
 import json
 import os
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
+from app.personal_agents.memory_extraction import MemoryExtractionService
 from app.personal_agents.planner import PlannerService
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
@@ -314,14 +315,14 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
     slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
-    knowledge_service = KnowledgeExtractionService(user_id)
+    memory_service = MemoryExtractionService(user_id)
 
     mbti_type = mbti_service.get_mbti_type()
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
     ocean_traits = ocean_service.get_personality_traits()
     slang_result = slang_service.retrieve_similar_slang(user_input.message)
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
-    similar_knowledge = knowledge_service.retrieve_similar_knowledge(history_string, top_k=2)
+    similar_memories = memory_service.vector_search(history_string)
 
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
@@ -353,8 +354,8 @@ USER BEHAVIOR ANALYSIS:
 - Behavior Pattern: {tpb}
 - Language Style: {slang_result}
 
-INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
-- INFORMATION: {similar_knowledge}
+# INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
+# - INFORMATION: {similar_memories}
 
 CONVERSATION HISTORY:
 {history_string}
@@ -434,6 +435,10 @@ Remember: Your goal is to create a natural, engaging meaningful conversation tha
                search_agent.as_tool(
                    tool_name="web_search",
                    tool_description="Search the internet for the user's answer."
+               ),
+               memory_service.agent.as_tool(
+                   tool_name="memory_search",
+                   tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
                )
         ]
     )

@@ -52,6 +52,17 @@ def store_memory(user_id:str, request: MemoryVector): #, user=Depends(verify_tok
     return {"message": "Memory stored successfully."} if memories else {"message": "No valuable memories extracted."}
 
 
+
+@router.post("/get-latest-messages")
+def get_latest_messages(user_id:str, request: str):
+    """
+    Retrieves the latest messages from the given message.
+    """
+    memory_service = MemoryExtractionService(user_id)
+    memories = memory_service.get_latest_messages(request)
+    return memories
+    
+
 @router.post("/emotional-momentum")
 def emotional_momentum(user_id:str, request: str):
     """
