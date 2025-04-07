@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.auth import verify_token
-from app.function.memory_extraction import MemoryExtractionService, MemoryResponse, MemoryVector
+from app.function.memory_extraction import MemoryExtractionService, MemoryResponse, MemoryMetadata
 from app.supabase.conversation_history import Message
 
 router = APIRouter()
@@ -12,7 +12,7 @@ class MemoryRequest(BaseModel):
 
 #TODO: Make routes protected to only allow authenticated users
 
-@router.post("/extract-memory", response_model=MemoryVector)
+@router.post("/extract-memory", response_model=MemoryMetadata)
 async def extract_memory(user_id:str, request: str): #, user=Depends(verify_token)) -> MemoryVector:
     """
     Extracts memories from the given message
@@ -36,7 +36,7 @@ async def extract_memory(user_id:str, request: str): #, user=Depends(verify_toke
 
 
 @router.post("/store-memory", response_model=bool)
-def store_memory(user_id:str, request: MemoryVector): #, user=Depends(verify_token)):
+def store_memory(user_id:str, request: MemoryMetadata): #, user=Depends(verify_token)):
     """
     Stores memories from the given message and stores them if valuable.
     """

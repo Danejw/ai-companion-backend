@@ -1,73 +1,74 @@
-
-
-
-
-
-
-
-
-
+from datetime import datetime
 from typing import List
 from agents import Agent, function_tool
-
-from app.function.memory_extraction import MemoryResponse, MemoryVector
 from app.function.memory_extraction import MemoryExtractionService
 
 
-
-# The system prompt for the memory extraction agent
+# System prompt for the memory agent
 instructions = (
     """
-    You are an AI that extracts useful information from user interactions and formats it as structured memory. 
-    Your job is to identify valuable personal information, preferences, facts, or emotional states about the user.
+    You are an AI that can retrieve memories from the user's memory.
     
-    For each extracted memory, provide the following fields:
-    - text: The exact piece of knowledge extracted from the conversation.
-    - sentiment_score: A number from -1.0 (extremely negative) to 1.0 (extremely positive) representing the emotional tone.
-    - topics: A list of 1-5 tags that categorize this memory (e.g., ['work', 'stress', 'management']).
-    - emotional_intensity: Categorize as 'low', 'medium', or 'high' based on how emotionally charged the content is.
-    
-    - importance: Assign a value from 0.0 to 1.0 representing how important this memory likely is to the user:
-    - 0.0-0.3: Trivial information (casual preferences, passing comments)
-    - 0.4-0.7: Moderately important (regular activities, general interests)
-    - 0.8-1.0: Highly important (core values, significant relationships, major life events)
-    
-    - metadata: Additional contextual information:
-    - disclosure: Set to true if this is a personal disclosure or vulnerable sharing.
-    - recurring_theme: Set to true if this topic has been mentioned multiple times.
-    - boundary_discussion: Set to true if related to personal boundaries or comfort zones.
-    - ritual: Set to true if describing a routine, habit, or meaningful repeated activity.
-    - self_awareness: Set to true if the user shows introspection or self-reflection.
-    - language_style: Describe the user's communication style (e.g., 'direct', 'poetic', 'analytical').
-    
-    Only extract knowledge when meaningful (importance > 0.3). Don't extract generic conversation, pleasantries, or system instructions.
-    If you're unsure about extracting a memory, evaluate whether it would be useful context for future conversations with this user.
+    You can use the following tools to retrieve memories:
+    - emotional_intensity (retrieve memories based on the user's emotional intensity)
+    - context_weighted (retrieve memories based on the user's current conversation context)
+    - mood_based_language (retrieve memories based on the user's current mood)
+    - memory_surface (retrieve memories that are relevant to the user's current conversation)
+    - rituals (retrieve memories that are relevant to the user's current conversation)
+    - boundaries (retrieve memories that are relevant to the user's current conversation)
+    - self_awareness (retrieve memories that are relevant to the user's current conversation)
+    - topics (retrieve memories that are relevant to the user's current conversation)
     """
 )
+
+agent = Agent(
+    name="MemoryAgent",
+    handoff_description="A memory agent that can retrieve memories from the user's memory.",
+    instructions=instructions,
+    model="gpt-4o-mini",
+)
+
 
 def create_memory_tools(user_id: str):
     memory_service = MemoryExtractionService(user_id)
        
-    @function_tool
-    def emotional_momentum(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+    @function_tool # DONE
+    def emotional_intensity(query_str: str) -> List[str]:
         """
-        Retrieve the most recent memories related to the current conversation.
-
-        This tool surfaces the latest relevant entries based on time, helping the AI 
-        stay connected to what the user has been thinking or feeling lately.
+        Retrieve memories that are relevant to the user's current conversation.
+        
+        This tool surfaces memories that are relevant to the user's current conversation, 
+        helping the AI stay connected to what the user has been thinking or feeling lately.
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
 
         Returns:
-            List[MemoryResponse]: A list of recent memories sorted from newest to oldest.
+            List[str]: A list of memories sorted by relevance to the user's current conversation.
         """
-        return memory_service.emotional_momentum(query_str, limit)
+        results = memory_service.emotional_intensity(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
 
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
+
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared: {text}")
+            else:
+                formatted.append(text)
+        
+        #print("formatted: ", formatted)
+        return formatted
+     
     @function_tool
-    def context_weighted(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+    def context_weighted(query_str: str) -> List[str]:
         """
         Retrieve memories based on their relevance to the current conversation context.
 
@@ -76,16 +77,33 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the current conversation.
+            List[str]: A list of memories sorted by relevance to the current conversation.
         """
-        return memory_service.context_weighted(query_str, limit)
+        results = memory_service.context_weighted(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []  
+        
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
 
-    @function_tool
-    def mood_based_language(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared: {text}")
+            else:
+                formatted.append(text)
+        
+        #print("formatted: ", formatted)
+        return formatted
+
+    @function_tool # DONE
+    def mood_based_language(query_str: str, language_style: str) -> List[str]:
         """
         Retrieve memories based on the user's mood at the time of the memory.
 
@@ -94,16 +112,34 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.      
-
+            language_style (str): The language style to match against memory tags.
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current mood.
+            List[str]: A list of memories sorted by relevance to the user's current mood.
         """
-        return memory_service.mood_based_language(query_str, limit)
+        results = memory_service.mood_based_language(query_str, language_style)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
+
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared: {text}")
+            else:
+                formatted.append(text)  
+                
+        # Search and summarize our last conversations where i had spoken in a direct way
+        
+        print("formatted: ", formatted)
+        return formatted
 
     @function_tool
-    def memory_surface(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+    def memory_surface(query_str: str) -> List[str]:
         """
         Retrieve memories that are relevant to the user's current conversation.
 
@@ -112,16 +148,34 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.  
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
+            List[str]: A list of memories sorted by relevance to the user's current conversation.
         """
-        return memory_service.memory_surface(query_str, limit)
+        results = memory_service.memory_surface(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
 
-    @function_tool
-    def rituals(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025   
+                formatted.append(f"On {human_date}, the user shared: {text}")
+            else:
+                formatted.append(text)
+        
+        # Search and summarize our last conversations where i displayed high memory surface
+        
+        print("formatted: ", formatted)
+        return formatted
+
+    @function_tool # DONE
+    def rituals(query_str: str) -> List[str]:
         """
         Retrieve memories that are relevant to the user's current conversation.
 
@@ -130,16 +184,35 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
-        """
-        return memory_service.rituals(query_str, limit)
+            List[str]: A list of memories sorted by relevance to the user's current conversation.
+        """   
+        results = memory_service.rituals(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []      
+        
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
 
-    @function_tool
-    def boundaries(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared their rituals: {text}")
+            else:
+                formatted.append(text)
+        
+        # Search and summarize our last conversations where i displayed high rituals    
+        
+        #print("formatted: ", formatted)
+        return formatted
+
+    @function_tool # DONE
+    def boundaries(query_str: str) -> List[str]:
         """
         Retrieve memories that are relevant to the user's current conversation.
 
@@ -148,16 +221,35 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.  
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
+            List[str]: A list of memories sorted by relevance to the user's current conversation.
         """
-        return memory_service.boundaries(query_str, limit)
+        
+        results = memory_service.boundaries(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
 
-    @function_tool
-    def self_awareness(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared their boundaries: {text}")
+            else:
+                formatted.append(text)
+        
+        # Search and summarize our last conversations where i displayed high boundaries
+        
+        #print("formatted: ", formatted)
+        return formatted
+
+    @function_tool # DONE
+    def self_awareness(query_str: str) -> List[str]:
         """
         Retrieve memories that are relevant to the user's current conversation. 
 
@@ -166,99 +258,80 @@ def create_memory_tools(user_id: str):
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.  
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
+            List[str]: A list of memories sorted by relevance to the user's current conversation.
         """
-        return memory_service.self_awareness(query_str, limit)
+        results = memory_service.self_awareness(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
 
-    @function_tool
-    def emotional_intensity(query_str: str, limit: int = 10) -> List[MemoryResponse]:
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared with high self awarness: {text}")
+            else:
+                formatted.append(text)
+        
+        # Search and summarize our last conversations where i displayed high self awarness
+        
+        #print("formatted: ", formatted)
+        return formatted
+
+    @function_tool # DONE
+    def topics(query_str: str, topics: List[str]):
         """
         Retrieve memories that are relevant to the user's current conversation.
         
         This tool surfaces memories that are relevant to the user's current conversation, 
         helping the AI stay connected to what the user has been thinking or feeling lately.
         
-        Args:
-            query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
-
-        Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
-        """
-        return memory_service.emotional_intensity(query_str, limit)
-
-
-    @function_tool
-    def get_latest_messages(query_str: str, limit: int = 10) -> List[MemoryResponse]:
-        """
-        Retrieve the most recent memories related to the current conversation.
-        
-        This tool surfaces memories that are relevant to the user's current conversation, 
-        helping the AI stay connected to what the user has been thinking or feeling lately.
-        
-        Args:
-            query_str (str): A message or idea from the user to semantically match.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
-
-        Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
-        """
-        return memory_service.get_latest_messages(query_str, limit)
-
-
-    @function_tool
-    def topics(query_str: str, topics: List[str], limit: int = 3) -> str:
-        """
-        Retrieve memories that are relevant to the user's current conversation.
-        
-        This tool surfaces memories that are relevant to the user's current conversation, 
-        helping the AI stay connected to what the user has been thinking or feeling lately.
+        Includes a human readable date and time.
         
         Args:
             query_str (str): A message or idea from the user to semantically match.
             topics (List[str]): A list of topics to filter memories by.
-            limit (int): Maximum number of memory items to return. Defaults to 10.
 
         Returns:
-            List[MemoryResponse]: A list of memories sorted by relevance to the user's current conversation.
+            List[str]: A list of knowledge texts from relevant memories.
         """
-        results = memory_service.topics(query_str, topics, limit)
+        results = memory_service.topics(query_str, topics)
         
-        
-        # get all the text from the results
-        result_text = "\n".join([result.text for result in results])
-        
-        print("result_text: ", result_text)
-        
-        return result_text
+        if not results:
+            return ["No relevant memories found."]
 
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
+
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user shared: {text}")
+            else:
+                formatted.append(text)
+                    
+        return formatted
+        
+        # search and summarize our last conversations about work and stress
+        # search and summarize our last conversations about being happy. when was the last time I expressed this emotion
+     
     return [
-        # emotional_intensity,
-        # context_weighted,
-        # mood_based_language,
-        # memory_surface,
-        # rituals,
-        # boundaries,
-        # self_awareness,
-        # get_latest_messages,
+        emotional_intensity,
+        context_weighted,
+        mood_based_language,
+        memory_surface,
+        rituals,
+        boundaries,
+        self_awareness,
         topics,
     ]
-
-
-agent = Agent(
-    name="MemoryExtractor",
-    handoff_description="An agent that extracts valuable information about the user from your interactions and stores it in a vector database.",
-    instructions=instructions,
-    model="gpt-4o-mini",
-    #output_type=MemoryVector,
-)
-
-
-
-
 
 

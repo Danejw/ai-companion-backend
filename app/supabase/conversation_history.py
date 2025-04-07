@@ -7,6 +7,7 @@ import logging
 from typing import Optional
 
 from pydantic import BaseModel
+from app.function.memory_extraction import MemoryExtractionService
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.mbti_analysis import MBTIAnalysisService
@@ -139,8 +140,8 @@ async def replace_conversation_history_with_summary(user_id: str, extract: bool 
 
         if extract:
             # Extract knowledge from the history.
-            extraction = KnowledgeExtractionService(user_id)
-            extract_task = asyncio.create_task(extraction.extract_knowledge(history_string))
+            extraction = MemoryExtractionService(user_id)
+            extract_task = asyncio.create_task(extraction.extract_memory(history_string))
             await extract_task
 
             # Run MBTI analysis

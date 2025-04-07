@@ -24,9 +24,7 @@ def knowledge_extract(data: KnowledgeRequest, user=Depends(verify_token)):
     # Convert the history to a string
     
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in user_messages])
-    
-    print("history_string", history_string)
-    
+        
     # Instantiate the KnowledgeExtractionService
     knowledge_service = KnowledgeExtractionService(user_id)
     

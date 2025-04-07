@@ -34,6 +34,7 @@ class MemoryFilter:
         return self
     
     def contains_any(self, key: str, items: List[Any]) -> "MemoryFilter":
+        print("contains_any: ", key, items)
         self.conditions.append(lambda memory: any(item in self._get_value(memory, key, default=[]) for item in items))
         return self
     

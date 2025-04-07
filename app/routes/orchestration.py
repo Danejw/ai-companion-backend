@@ -429,11 +429,14 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
         tools=[WebSearchTool()]
     )
     
+    memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
+
+    
     convo_lead_agent = Agent(
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini", #"o3-mini",
+        model="gpt-4o-mini", # "o3-mini"
         tools=[get_users_name, update_user_name,
                get_user_birthdate, update_user_birthdate,
                get_user_location, update_user_location,
@@ -443,15 +446,13 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
                    tool_name="web_search",
                    tool_description="Search the internet for the user's answer."
                ),
-            #    memory_service.agent.as_tool(
-            #        tool_name="memory_search",
-            #        tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
-            #    )
+               memory_agents.agent.as_tool(
+                   tool_name="memory_search",
+                   tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
+               )
         ]
     )
     
-    memory_agents.agent.tools = memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
-    memory_agents.agent.handoffs = [convo_lead_agent, handoff(convo_lead_agent)]
     
 
     try:
@@ -469,14 +470,14 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
         
         else:
             # Streaming: run the agent in streaming mode
-            response : RunResultStreaming = Runner.run_streamed(starting_agent=memory_agents.agent, input=user_input.message)
+            response : RunResultStreaming = Runner.run_streamed(starting_agent=convo_lead_agent, input=user_input.message)
 
             async def event_stream():            
                 full_output = ""
                 try:
                     async for event in response.stream_events():           
                         
-                        print(f"Raw Event: {event}")
+                        # print(f"Raw Event: {event}")
                            
                         if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                             chunk = event.data.delta
@@ -613,22 +614,7 @@ async def stream_response(user_input: UserInput):
                         if hasattr(chunk, "text"):
                             # print(chunk.text)
                             yield chunk.text
-            
-            
-            # elif event.item.type == "tool_call_item":
-            #     # print("-- Tool was called")
-            #     continue
-            
-            # elif event.item.type == "tool_call_output_item":
-            #     # print(f"-- Tool output: {event.item.output}")
-            #     continue
-                
-            # elif event.item.type == "message_output_item":
-            #     # print(f"-- Message output:\n {ItemHelpers.text_message_output(event.item)}")
-            #     continue
-                
-            # else:
-            #     pass  # Ignore other event types
+        
 
     return StreamingResponse(event_stream(), media_type="text/plain")
         

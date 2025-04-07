@@ -1,3 +1,5 @@
+# DEPRECATED, USE MEMORY_EXTRACTION INSTEAD
+
 import datetime
 import logging
 from typing import List, Optional, Dict, Any
