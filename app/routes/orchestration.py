@@ -314,16 +314,16 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
-    #ocean_service = OceanAnalysisService(user_id)
-    #slang_service = SlangExtractionService(user_id)
+    ocean_service = OceanAnalysisService(user_id)
+    slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
     #memory_service = MemoryExtractionService(user_id)
 
-    #mbti_type = mbti_service.get_mbti_type()
-    #style_prompt = mbti_service.generate_style_prompt(mbti_type)
-    #ocean_traits = ocean_service.get_personality_traits()
-    #slang_result = slang_service.retrieve_similar_slang(user_input.message)
+    mbti_type = mbti_service.get_mbti_type()
+    style_prompt = mbti_service.generate_style_prompt(mbti_type)
+    ocean_traits = ocean_service.get_personality_traits()
+    slang_result = slang_service.retrieve_similar_slang(user_input.message)
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
 
@@ -339,15 +339,13 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
     agent_name = "Noelle"
     instructions = f"""
+    Your name is {agent_name} who is a conversationalist that leads the conversation with the user to get to know them better.
+    Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
+    
 # USER CONTEXT:
 # - User ID: {user_id}
 # - Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
 # - Current Message: {user_input.message}
-
-"""
-# 
-# Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
-
 
 
 # PERSONALITY INSIGHTS:
@@ -355,17 +353,11 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 # - MBTI Type: {mbti_type}
 # - Communication Style: {style_prompt}
 
+
 # USER BEHAVIOR ANALYSIS:
 # - Intent: {intent}
 # - Behavior Pattern: {tpb}
 # - Language Style: {slang_result}
-
-# # INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
-# # - INFORMATION: {similar_memories}
-
-# CONVERSATION HISTORY:
-# {history_string}
-
 
 
 # CONVERSATION GUIDELINES:
@@ -374,6 +366,12 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 #    - Use their name occasionally but don't overuse it
 #    - If the user gives their name, birthday, location, gender, or any other information, update it using the corresponding function tool
    
+# Response Format:
+#    - Write in plain text (no markdown)
+#    - Keep responses insightful, and engaging
+#    - Include appropriate emotional expressions, and slangs
+#    - Make natural transitions between topics
+
 # Function Tools:
 #    - Get the user's name using "get_users_name" tool
 #    - if the user gives their name, automatically update the user's name using "update_user_name" tool
@@ -383,9 +381,15 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 #    - if the user gives their location, automatically update the user's location using "update_user_location" tool
 #    - Get the user's gender using "get_user_gender" tool
 #    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
-#    - Retrieve personalized information about the user using "retrieve_personalized_info_about_user" tool
 #    - Search the internet for the user's answer using the "search_agent" as a tool
-#    - Create user feedback using "feedback_agent" as a tool
+#    - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
+
+# CONVERSATION HISTORY:
+# {history_string}
+
+
+"""
+
 
 # Communication Style:
 #    - ASK ONLY ONE QUESTION AT A TIME and ONLY if it enhances the conversation.
@@ -397,11 +401,7 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 #    - Avoid technical terms or jargon
 #    - NEVER MENTION MBTI OR OCEAN ANALYSIS IN YOUR RESPONSES.
 
-# Response Format:
-#    - Write in plain text (no markdown)
-#    - Keep responses concise, insightful, and engaging
-#    - Include appropriate emotional expressions, and slangs
-#    - Make natural transitions between topics
+
 
 # Personality Assessment:
 #    - Observe and adapt to user's:

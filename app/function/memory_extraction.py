@@ -75,6 +75,7 @@ class MemoryResponse(BaseModel):
 class MemoryExtractionService:
     def __init__(self, user_id: str):
         self.user_id = user_id
+        self.limit = 10
         self.agent = Agent(
         name="MemoryExtractor",
         handoff_description="An agent that extracts valuable information about the user from your interactions and stores it in a vector database.",
@@ -82,8 +83,6 @@ class MemoryExtractionService:
         model="gpt-4o-mini",
         output_type=MemoryMetadata,
     )
-        self.limit = 10
-
         
     def get_timestamp(self) -> datetime:
         return datetime.now()

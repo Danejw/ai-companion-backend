@@ -333,5 +333,3 @@ def create_memory_tools(user_id: str):
         self_awareness,
         topics,
     ]
-
-
