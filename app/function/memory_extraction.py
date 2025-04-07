@@ -6,6 +6,7 @@ from agents import Agent, Runner
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from supabase import create_client
+from app.supabase.knowledge_edges import create_knowledge_edges
 from app.supabase.pgvector import generate_embedding
 from app.utils.match_filter import MemoryFilter
 
@@ -130,11 +131,14 @@ class MemoryExtractionService:
             if existing.data:
                 # Increase mention count and update timestamp
                 new_count = existing.data[0]["mention_count"] + 1
-                supabase.table("user_knowledge").update({"metadata": memory_dict, "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
+                response = supabase.table("user_knowledge").update({"metadata": memory_dict, "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
             else:
                 # Insert new knowledge
-                supabase.table("user_knowledge").insert({"user_id": self.user_id, "knowledge_text": memory.text, "embedding": text_vectors, "metadata": memory_dict, "mention_count": 1}).execute()
-
+                response = supabase.table("user_knowledge").insert({"user_id": self.user_id, "knowledge_text": memory.text, "embedding": text_vectors, "metadata": memory_dict, "mention_count": 1}).execute()
+                
+            # Edge creation
+            new_id = response.data[0]["id"]
+            create_knowledge_edges(self.user_id, new_id, text_vectors, memory_dict)
             return True
         
         except Exception as e:

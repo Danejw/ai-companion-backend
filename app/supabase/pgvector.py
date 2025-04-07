@@ -4,7 +4,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 from openai import OpenAI
 import logging
-
+from app.supabase.knowledge_edges import create_knowledge_edges
 
 load_dotenv()
 
@@ -46,10 +46,16 @@ def store_user_knowledge(user_id: str, knowledge_text: str, metadata: dict):
     if existing.data:
         # Increase mention count and update timestamp
         new_count = existing.data[0]["mention_count"] + 1
-        supabase.table("user_knowledge").update({"metadata": json.dumps(metadata), "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
+        response = supabase.table("user_knowledge").update({"metadata": json.dumps(metadata), "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
+        
     else:
         # Insert new knowledge
-        supabase.table("user_knowledge").insert({"user_id": user_id, "knowledge_text": knowledge_text, "embedding": embedding, "metadata": json.dumps(metadata), "mention_count": 1}).execute()
+        response = supabase.table("user_knowledge").insert({"user_id": user_id, "knowledge_text": knowledge_text, "embedding": embedding, "metadata": json.dumps(metadata), "mention_count": 1}).execute()
+
+    # Edge creation
+    new_id = response.data[0]["id"]
+    create_knowledge_edges(user_id, new_id, embedding, metadata)
+    return response.data
 
 def find_similar_knowledge(user_id: str, query: str, top_k=5):
     """

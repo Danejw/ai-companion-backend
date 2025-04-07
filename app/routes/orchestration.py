@@ -583,7 +583,7 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     #logging.info(f"Costs: {costs}")
 
     # replace history with summary
-    if len(history) >= summarize:
+    if len(history) >= 1: #summarize:
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
 

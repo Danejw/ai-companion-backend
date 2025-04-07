@@ -12,7 +12,7 @@ app = FastAPI()
 
 # Configure logging at the start of the file
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.ERROR,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -46,6 +46,7 @@ from app.routes.realtime import realtime_router
 from app.routes.mbti import router as mbti_router
 from app.routes.ocean import router as ocean_router
 from app.routes.knowledge import router as knowledge_router
+from app.routes.knowledge_edges_route import router as knowledge_edges_router
 from app.routes.memory_extraction_routes import router as memory_extraction_router
 from app.routes.orchestration import router as orchestration_router
 from app.stripe.subscription import router as stripe_router
@@ -64,6 +65,7 @@ app.include_router(realtime_router)
 app.include_router(mbti_router, prefix="/mbti", tags=["MBTI"])
 app.include_router(ocean_router, prefix="/ocean", tags=["OCEAN"])
 app.include_router(knowledge_router, prefix="/knowledge", tags=["Knowledge"])
+app.include_router(knowledge_edges_router, prefix="/knowledge_edges", tags=["Knowledge Edges"])
 app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
 app.include_router(stripe_router, prefix="/app/stripe", tags=["stripe"])
 app.include_router(slang_router, prefix="/slang", tags=["Slang"])
@@ -75,6 +77,8 @@ app.include_router(conversation_router, prefix="/conversations", tags=["Conversa
 app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
+
+
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
