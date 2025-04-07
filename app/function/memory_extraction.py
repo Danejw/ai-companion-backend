@@ -412,3 +412,22 @@ class MemoryExtractionService:
         filter = MemoryFilter().contains_any("topics", topics).greater_than_or_equal("importance", 0.5).apply(results)
         #print("filter: ", filter)
         return filter
+
+
+    def feedback(self, query_str: str) -> List[MemoryResponse]:
+        """
+        Retrieve memories tagged with the "feedback" topic.
+
+        This tool helps the AI pull up memories related to feedback or user interactions.
+
+        Args:
+            query_str (str): A message or idea from the user to semantically match.
+
+        Returns:
+            List[MemoryResponse]: A list of memories tagged with the "feedback" topic.
+        """
+        results = self.vector_search(query_str, self.limit)
+        
+        filtered_results = MemoryFilter().match("topics", "feedback").apply(results)
+        
+        return filtered_results

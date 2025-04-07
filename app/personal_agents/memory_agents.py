@@ -326,6 +326,36 @@ def create_memory_tools(user_id: str):
         # search and summarize our last conversations about work and stress
         # search and summarize our last conversations about being happy. when was the last time I expressed this emotion
      
+    @function_tool
+    def feedback(query_str: str) -> List[str]:
+        """
+        Retrieve memories tagged with the "feedback" topic.
+        
+        Args:
+            query_str (str): A message or idea from the user to semantically match.
+
+        Returns:
+            List[str]: A list of memories tagged with the "feedback" topic.
+        """
+        results = memory_service.feedback(query_str)
+        
+        if not results:
+            return ["No relevant memories found."]
+        
+        formatted = []
+        for r in results:
+            text = r["knowledge_text"] if isinstance(r, dict) else r.knowledge_text
+            timestamp = r.get("metadata", {}).get("timestamp") or r.get("timestamp")
+
+            if timestamp:
+                dt = datetime.fromisoformat(timestamp)
+                human_date = dt.strftime("%B %d, %Y")  # e.g., April 06, 2025
+                formatted.append(f"On {human_date}, the user expressed feedback: {text}")
+            else:
+                formatted.append(text)
+        
+        return formatted
+
     return [
         emotional_intensity,
         context_weighted,
@@ -335,4 +365,5 @@ def create_memory_tools(user_id: str):
         boundaries,
         self_awareness,
         topics,
+        feedback,
     ]
