@@ -83,17 +83,17 @@ class ProfileRepository:
             logging.error(f"Error fetching image for user_id: {user_id}: {e}")
             return None
         
-    def update_user_name(self, user_id: str, name: str) -> bool:
+    def update_user_name(self, user_id: str, name: str) -> str:
         """
         Updates the name of the user in the profile record in Supabase.
         Returns True if update was successful, False otherwise.
         """
         try:
             response = self.supabase.table(self.table_name).update({"name": name}).eq("id", user_id).execute()
-            return True
+            return "Name updated successfully"
         except Exception as e:
             logging.error(f"Error updating name for user_id: {user_id}: {e}")
-            return False
+            return "Error updating name"
         
     def update_user_image(self, user_id: str, image: str) -> bool:
         """

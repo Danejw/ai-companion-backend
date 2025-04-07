@@ -2,7 +2,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.auth import verify_token
-from app.personal_agents.memory_extraction import MemoryExtractionService, MemoryResponse, MemoryVector
+from app.function.memory_extraction import MemoryExtractionService, MemoryResponse, MemoryVector
 from app.supabase.conversation_history import Message
 
 router = APIRouter()

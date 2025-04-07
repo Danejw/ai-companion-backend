@@ -2,8 +2,9 @@ import datetime
 from http.client import HTTPException
 import json
 import os
+from app.personal_agents import memory_agents
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
-from app.personal_agents.memory_extraction import MemoryExtractionService
+from app.function.memory_extraction import MemoryExtractionService
 from app.personal_agents.planner import PlannerService
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
@@ -19,7 +20,9 @@ from pydantic import BaseModel
 import asyncio
 import logging
 from app.auth import verify_token
-from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, set_tracing_disabled, RunResultStreaming, WebSearchTool
+from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, handoff, set_tracing_disabled, RunResultStreaming, WebSearchTool
+from openai.types.responses import ResponseTextDeltaEvent
+
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
 from fastapi.responses import StreamingResponse
 
@@ -311,18 +314,18 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
-    ocean_service = OceanAnalysisService(user_id)
-    slang_service = SlangExtractionService(user_id)
+    #ocean_service = OceanAnalysisService(user_id)
+    #slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
-    memory_service = MemoryExtractionService(user_id)
+    #memory_service = MemoryExtractionService(user_id)
 
-    mbti_type = mbti_service.get_mbti_type()
-    style_prompt = mbti_service.generate_style_prompt(mbti_type)
-    ocean_traits = ocean_service.get_personality_traits()
-    slang_result = slang_service.retrieve_similar_slang(user_input.message)
+    #mbti_type = mbti_service.get_mbti_type()
+    #style_prompt = mbti_service.generate_style_prompt(mbti_type)
+    #ocean_traits = ocean_service.get_personality_traits()
+    #slang_result = slang_service.retrieve_similar_slang(user_input.message)
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
-    similar_memories = memory_service.vector_search(history_string)
+    #similar_memories = memory_service.vector_search(history_string)
 
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
@@ -336,31 +339,34 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
     agent_name = "Noelle"
     instructions = f"""
-You are {agent_name}, an empathetic and engaging conversationalist with your own personality. Be yourself and be natural.
+# USER CONTEXT:
+# - User ID: {user_id}
+# - Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
+# - Current Message: {user_input.message}
 
-USER CONTEXT:
-- User ID: {user_id}
-- Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
-- Current Message: {user_input.message}
-
-PERSONALITY INSIGHTS:
-- OCEAN Profile: {ocean_traits}
-- MBTI Type: {mbti_type}
-- Communication Style: {style_prompt}
-
-USER BEHAVIOR ANALYSIS:
-- Intent: {intent}
-- Behavior Pattern: {tpb}
-- Language Style: {slang_result}
-
-# INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
-# - INFORMATION: {similar_memories}
-
-CONVERSATION HISTORY:
-{history_string}
 """
-
+# 
 # Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
+
+
+
+# PERSONALITY INSIGHTS:
+# - OCEAN Profile: {ocean_traits}
+# - MBTI Type: {mbti_type}
+# - Communication Style: {style_prompt}
+
+# USER BEHAVIOR ANALYSIS:
+# - Intent: {intent}
+# - Behavior Pattern: {tpb}
+# - Language Style: {slang_result}
+
+# # INFORMATION EXTRACTED FROM PREVIOUS CONVERSATIONS:
+# # - INFORMATION: {similar_memories}
+
+# CONVERSATION HISTORY:
+# {history_string}
+
+
 
 # CONVERSATION GUIDELINES:
 # USER Management:
@@ -423,27 +429,30 @@ CONVERSATION HISTORY:
         tools=[WebSearchTool()]
     )
     
-    
     convo_lead_agent = Agent(
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o", #"o3-mini",
+        model="gpt-4o-mini", #"o3-mini",
         tools=[get_users_name, update_user_name,
                get_user_birthdate, update_user_birthdate,
                get_user_location, update_user_location,
                get_user_gender, update_user_gender,
-               retrieve_personalized_info_about_user,
+               #retrieve_personalized_info_about_user,
                search_agent.as_tool(
                    tool_name="web_search",
                    tool_description="Search the internet for the user's answer."
                ),
-               memory_service.agent.as_tool(
-                   tool_name="memory_search",
-                   tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
-               )
+            #    memory_service.agent.as_tool(
+            #        tool_name="memory_search",
+            #        tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
+            #    )
         ]
     )
+    
+    memory_agents.agent.tools = memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
+    memory_agents.agent.handoffs = [convo_lead_agent, handoff(convo_lead_agent)]
+    
 
     try:
         if not stream:
@@ -460,22 +469,30 @@ CONVERSATION HISTORY:
         
         else:
             # Streaming: run the agent in streaming mode
-            response : RunResultStreaming = Runner.run_streamed(convo_lead_agent, user_input.message)
+            response : RunResultStreaming = Runner.run_streamed(starting_agent=memory_agents.agent, input=user_input.message)
 
             async def event_stream():            
                 full_output = ""
                 try:
-                    async for event in response.stream_events():              
-                        if event.type == "raw_response_event" and hasattr(event.data, "delta"):
+                    async for event in response.stream_events():           
+                        
+                        print(f"Raw Event: {event}")
+                           
+                        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                             chunk = event.data.delta
                             full_output += chunk
                             yield json.dumps({"delta": chunk}) + "\n"
-                    # elif event.type == "run_item_stream_event":
-                    #     if event.item.type == "message_output_item":
-                    #         for chunk in event.item.raw_item.content:
-                    #             if hasattr(chunk, "text"):
-                    #                 full_output += chunk.text
-                    #                 yield json.dumps({"delta": chunk.text}) + "\n"
+                        elif event.type == "run_item_stream_event":
+                            if event.item.type == "tool_call_item":
+                                yield json.dumps({"tool_call": "A tool was called"}) + "\n"
+                            elif event.item.type == "tool_call_output_item":
+                                yield  json.dumps({"tool_call_output": event.item.output}) + "\n"
+                        elif event.type == "agent_updated_stream_event":
+                            yield json.dumps({"agent_updated": f"Agent updated: {event.new_agent.name}"}) + "\n"
+                            
+                            
+                            
+                            
                 except ValueError as e:
                     # This handles the specific context variable error
                     if "was created in a different Context" in str(e):
