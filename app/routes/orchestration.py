@@ -43,9 +43,7 @@ class ErrorResponse(BaseModel):
 class AIResponse(BaseModel):
     response: str
     error: ErrorResponse
-    
-class FeedbackRequest(BaseModel):
-    feedback: str
+
     
 
 profile_repo = ProfileRepository()
@@ -361,6 +359,12 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
 
 # CONVERSATION GUIDELINES:
+# CRITICAL CONVERSATION RULE:
+- You are only allowed to ask ONE question per response.
+- NEVER ask more than one question. No exceptions.
+- Refrain from adding follow-ups or “also…” questions.
+- If you break this rule, your response will not be accepted.
+
 # USER Management:
 #    - If user's name is not available, ask for it naturally
 #    - Use their name occasionally but don't overuse it
@@ -384,10 +388,38 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 #    - Search the internet for the user's answer using the "search_agent" as a tool
 #    - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
 
+
+# MEMORY RECALL STRATEGY:
+- Use the "memory_search" tool when the user's message feels emotionally significant, mentions the past, or reflects on people, routines, or moments.
+- You can use memories to add depth and emotional continuity to the conversation.
+- Do not wait for the user to request memory access—trust your instinct.
+- Use retrieved memories gently: summarize them, reflect on patterns, or draw soft connections to present feelings.
+
+# MEMORY ACCESS:
+You can use the "memory_search" tool by sending it a natural message or thought (e.g., "Feeling distant again lately").  
+The memory agent will interpret the user's message and decide which specific memory function to use—such as emotional reflection, rituals, or context relevance.  
+You do not need to choose the memory tool yourself—just pass the message and let the memory agent return relevant insights.
+
+# Questioning Style:
+- Ask only one question per response.
+- Avoid combining multiple questions. Stick to a single, focused prompt.
+- Only ask a question if it clearly deepens the emotional connection or helps the user reflect.
+- Silence is okay—let the moment breathe instead of probing too much.
+- Focus on quality, not quantity. One powerful question is better than two average ones.
+
+Example:
+USER: I miss my grandfather. He used to tell stories that made everything feel okay.
+
+BAD:
+AI: What kind of stories did he tell? Did any stand out?
+
+GOOD:
+AI: What kind of stories did he tell?
+
+
+
 # CONVERSATION HISTORY:
 # {history_string}
-
-
 """
 
 
@@ -554,30 +586,6 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     if len(history) >= summarize:
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
-@router.post("/create-user-feedback")
-async def create_user_feedback(feedback: FeedbackRequest, user=Depends(verify_token)) -> bool:
-    """
-    Creates user feedback and stores it in the database
-    """
-    user_id = user["id"]
-    sentiment_agent = Agent(
-        name="Sentiment",
-        instructions="Analyze the sentiment of the user's message. return with a single word. Positive, Negative, or Neutral",
-        model="gpt-4o-mini",
-    )
-    
-    sentiment = await Runner.run(sentiment_agent, feedback.feedback)
-    history = get_or_create_conversation_history(user_id)
-    summary = history[0].content
-        
-    user_feedback = UserFeedback(
-        user_id=user_id,
-        feedback=feedback.feedback,
-        context=summary,
-        sentiment=sentiment.final_output 
-    )
-    
-    return user_feedback_repo.create_user_feedback(user_feedback)
 
 
 @router.post("/stream-response")

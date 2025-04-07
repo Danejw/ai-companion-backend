@@ -10,6 +10,15 @@
                 "--access-token",
                 "sbp_76f2f26c3f6cb3037d3919eca876952af460783c"
             ]
+        },
+        "stripe": {
+            "command": "npx",
+            "args": [
+                "-y",
+                "@stripe/mcp",
+                "--tools=all",
+                "--api-key=sk_test_51R0zs6LU5qsEvJyZ4EtnNANpONf12VnQKKrEACZPfMRtosyH4M1H1oHmCCvCPlHlaUezOXKNDu9mQTVyBHdzYqdJ00Yhsv8rU5"
+            ]
         }
     }
 }

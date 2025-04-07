@@ -99,9 +99,9 @@ class MemoryExtractionService:
            
             result = MemoryMetadata(**memory_result.final_output.dict())
                       
-            if result.importance < 0.3:
-                logging.info("Extracted memory is not valuable enough to store.")
-                return None
+            # if result.importance < 0.3:
+            #     logging.info("Extracted memory is not valuable enough to store.")
+            #     return None
 
             result.timestamp = self.get_timestamp().isoformat()
             

@@ -12,7 +12,7 @@ app = FastAPI()
 
 # Configure logging at the start of the file
 logging.basicConfig(
-    level=logging.ERROR,
+    level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
@@ -57,6 +57,7 @@ from app.routes.theory_planned_behavior_route import router as theory_planned_be
 from app.routes.profiles_routes import router as profiles_router
 from app.routes.conversation_routes import router as conversation_router
 from app.routes.vector_routes import router as vector_router
+from app.routes.feedback import router as feedback_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -73,6 +74,7 @@ app.include_router(profiles_router, prefix="/profiles", tags=["Profiles"])
 app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
 app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
+app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
