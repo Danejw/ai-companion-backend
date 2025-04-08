@@ -293,7 +293,7 @@ async def voice_assistant_optimized():
 
 async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, audio: UploadFile = File(...)) -> BytesIO:
     # samplerate = sd.query_devices(kind='input')['default_samplerate']
-    custom_tts_settings.voice = voice
+    custom_tts_settings.voice = voice.value
     voice_pipeline_config = VoicePipelineConfig(tts_settings=custom_tts_settings)
 
     # Read the uploaded audio and convert to numpy array
