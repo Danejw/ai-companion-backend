@@ -2,6 +2,7 @@ import datetime
 from http.client import HTTPException
 import json
 import os
+from typing import Dict, List
 from app.personal_agents import memory_agents
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.function.memory_extraction import MemoryExtractionService
@@ -11,7 +12,8 @@ from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
 from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
-from app.supabase.conversation_history import Message, append_message_to_history, get_or_create_conversation_history, replace_conversation_history_with_summary
+from app.supabase.conversation_history import Message, append_message_to_history, clear_conversation_history, get_or_create_conversation_history, replace_conversation_history_with_summary
+from app.supabase.knowledge_edges import get_connected_memories
 from app.supabase.profiles import ProfileRepository
 from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
 from app.utils.moderation import ModerationService
@@ -296,7 +298,7 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
     # Check if the user has enough credits.
     credits = profile_repo.get_user_credit(user_id)
     if credits is None or credits < 1:
-        return AIResponse(response="", error=ErrorResponse(error=True, message="NO_CREDITS"))
+        return AIResponse(response="No Credits Left", error=ErrorResponse(error=True, message="NO_CREDITS"))
 
     # Moderation, name lookup, and history updates
     is_safe = moderation_service.is_safe(user_input.message)
@@ -316,7 +318,8 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
     slang_service = SlangExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
-    #memory_service = MemoryExtractionService(user_id)
+    memory_service = MemoryExtractionService(user_id)
+    
 
     mbti_type = mbti_service.get_mbti_type()
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
@@ -324,11 +327,53 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
     slang_result = slang_service.retrieve_similar_slang(user_input.message)
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
+    #relational_context = get_connected_memories(user_id, ##############) <-- source id
+
+
+
 
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
+ 
+    print(f"\n--------- Intent Classifaction ---------\n")
+    print(f"Intent: {intent.intent_label}")
+    print(f"Confidence Score: {intent.confidence_score}")
+    print(f"Clarifying Question: {intent.clarifying_question}")
+    print(f"Emotion: {intent.emotion}")
+    print(f"Memory Trigger: {intent.memory_trigger}")
+    print(f"Related Edges: {intent.related_edges}")
+    print(f"Reasoning: {intent.reasoning}")
+    print(f"\n----------------------------------------\n")
+
+    memory_string = ""
+    relational_context_string = ""
+   
     if intent.confidence_score < 0.85:
         intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
+    else:
+        similar_memories = memory_service.vector_search(user_input.message, limit=1)
+        memory_string = similar_memories[0]['knowledge_text']
+        if similar_memories and len(similar_memories) > 0:
+            
+            print(f"\n--------- Similar Memories ---------\n")
+            print(f"Id: {similar_memories[0]['id']}")
+            print(f"{memory_string}")
+            print(f"\n----------------------------------------\n")
+            
+            relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
+            
+            print(f"\n--------- Relational Context ---------\n")
+            
+            for memory in relational_context:
+                print(f"{memory}")            
+            relational_context_string += format_context_block(relational_context) + "\n"
+
+                
+            print(f"\n----------------------------------------\n")
+                
+        else:
+            print("No similar memories found")
+           
         
     # Behavior classification
     tpb = await tpb_service.classify_behavior(history_string)
@@ -337,8 +382,38 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
     agent_name = "Noelle"
     instructions = f"""
-    Your name is {agent_name} who is a conversationalist that leads the conversation with the user to get to know them better.
-    Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
+
+IMPORTANT RULE:
+- At the end of your response, ONLY ASK ONE QUESTION AT A TIME AND ONLY ASK a question if it enhances the conversation.
+
+- When referencing memories, weave them into the conversation naturally using emotionally resonant language.
+- When referencing relational context, subtly reflect the user's experiences.
+- Reflect back patterns from user’s creative or reflective routines (e.g., walking, journaling, morning stillness) to deepen the connection.
+- Repetition of "clarity" and "heavy thoughts" unless it’s echoed freshly.
+- Mirror the user's language and communication style.
+- If no relational context is retrieved, reference the most relevant similar memory explicitly to enhance continuity.
+- When relevant, adapt to the user’s cultural background, tone, or dialect to build stronger connection.
+- Use the user’s previously stated rituals as anchor points to shift topics or invite exploration of new areas
+- Explore deeper emotional anchors when relational context is absent
+- Avoid repeating similar reflective tones across multiple turns. Vary rhythm and language style to feel more like a dynamic human conversation.
+
+
+Use this with your response to the user (do not repeat the same information):
+Similar Memories:
+{memory_string}
+
+Relational Context:
+{relational_context_string}
+
+# CONVERSATION HISTORY:
+# {history_string}
+"""
+
+    print(f"Instructions : {instructions}")
+# that leads the conversation with the user to get to know them better.
+# Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
+
+# Your name is {agent_name} who is a conversationalist
     
 # USER CONTEXT:
 # - User ID: {user_id}
@@ -360,10 +435,15 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 
 # CONVERSATION GUIDELINES:
 # CRITICAL CONVERSATION RULE:
-- You are only allowed to ask ONE question per response.
-- NEVER ask more than one question. No exceptions.
-- Refrain from adding follow-ups or “also…” questions.
-- If you break this rule, your response will not be accepted.
+# - You are only allowed to ask ONE question per response.
+# - NEVER ask more than one question. No exceptions.
+# - Refrain from adding follow-ups or “also…” questions.
+# - If you break this rule, your response will not be accepted.
+
+# # Relational Context:
+# - You are given relationally-connected memories in {relational_context}
+# - These can provide deeper emotional understanding or contextual anchors.
+# - Use them only when they naturally fit the flow of the current topic or emotional tone.
 
 # USER Management:
 #    - If user's name is not available, ask for it naturally
@@ -376,51 +456,49 @@ async def convo_lead(user_input: UserInput, stream: bool = True, summarize: int 
 #    - Include appropriate emotional expressions, and slangs
 #    - Make natural transitions between topics
 
-# Function Tools:
-#    - Get the user's name using "get_users_name" tool
-#    - if the user gives their name, automatically update the user's name using "update_user_name" tool
-#    - Get the user's birthdate using "get_user_birthdate" tool
-#    - if the user gives their birthdate, automatically update the user's birthdate using "update_user_birthdate" tool
-#    - Get the user's location using "get_user_location" tool
-#    - if the user gives their location, automatically update the user's location using "update_user_location" tool
-#    - Get the user's gender using "get_user_gender" tool
-#    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
-#    - Search the internet for the user's answer using the "search_agent" as a tool
-#    - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
+
+# RELATIONAL CONTEXT STRATEGY:
+# - The user's past memories are not isolated. Some are deeply *connected* through emotional, temporal, or thematic threads.
+# - You are provided a list of memories that are connected to the user's recent thoughts, based on their past reflections. Use these when:
+#     - A past pattern or theme might offer helpful insight or empathy.
+#     - You sense a recurring struggle, habit, or emotional echo.
+#     - You want to gently re-surface meaningful experiences without overwhelming the user.
+
+# - These memories are in: {relational_context}
+
+# - Be intentional:
+#     - Don’t just repeat the memory.
+#     - Use it to *relate*, *validate*, or *contrast* what the user is feeling now.
+#     - Refer to the memory's emotional tone or timestamp if relevant ("Not long ago..." / "I remember you once said...").
+
+# - DO NOT overuse this. Choose *one* memory at most per message if helpful, and only if it adds emotional depth or context.
 
 
-# MEMORY RECALL STRATEGY:
-- Use the "memory_search" tool when the user's message feels emotionally significant, mentions the past, or reflects on people, routines, or moments.
-- You can use memories to add depth and emotional continuity to the conversation.
-- Do not wait for the user to request memory access—trust your instinct.
-- Use retrieved memories gently: summarize them, reflect on patterns, or draw soft connections to present feelings.
+# # MEMORY CONTEXT:
+# - These are highly relevant memories retrieved based on the similarity to the user’s recent message: {similar_memories}
+# - You can reference these to reflect, build on themes, or help the user feel understood.
+# - Do not directly quote them unless it feels natural—summarize or echo them gently in your tone or content.
 
-# MEMORY ACCESS:
-You can use the "memory_search" tool by sending it a natural message or thought (e.g., "Feeling distant again lately").  
-The memory agent will interpret the user's message and decide which specific memory function to use—such as emotional reflection, rituals, or context relevance.  
-You do not need to choose the memory tool yourself—just pass the message and let the memory agent return relevant insights.
+# # MEMORY ACCESS:
+# You can use the "memory_search" tool by sending it a natural message or thought (e.g., "Feeling distant again lately").  
+# The memory agent will interpret the user's message and decide which specific memory function to use—such as emotional reflection, rituals, or context relevance.  
+# You do not need to choose the memory tool yourself—just pass the message and let the memory agent return relevant insights.
 
-# Questioning Style:
-- Ask only one question per response.
-- Avoid combining multiple questions. Stick to a single, focused prompt.
-- Only ask a question if it clearly deepens the emotional connection or helps the user reflect.
-- Silence is okay—let the moment breathe instead of probing too much.
-- Focus on quality, not quantity. One powerful question is better than two average ones.
+# # Questioning Style:
+# - Ask only one question per response.
+# - Avoid combining multiple questions. Stick to a single, focused prompt.
+# - Only ask a question if it clearly deepens the emotional connection or helps the user reflect.
+# - Silence is okay—let the moment breathe instead of probing too much.
+# - Focus on quality, not quantity. One powerful question is better than two average ones.
 
-Example:
-USER: I miss my grandfather. He used to tell stories that made everything feel okay.
+# Example:
+# USER: I miss my grandfather. He used to tell stories that made everything feel okay.
 
-BAD:
-AI: What kind of stories did he tell? Did any stand out?
+# BAD:
+# AI: What kind of stories did he tell? Did any stand out?
 
-GOOD:
-AI: What kind of stories did he tell?
-
-
-
-# CONVERSATION HISTORY:
-# {history_string}
-"""
+# GOOD:
+# AI: What kind of stories did he tell?
 
 
 # Communication Style:
@@ -433,6 +511,17 @@ AI: What kind of stories did he tell?
 #    - Avoid technical terms or jargon
 #    - NEVER MENTION MBTI OR OCEAN ANALYSIS IN YOUR RESPONSES.
 
+# Function Tools:
+#    - Get the user's name using "get_users_name" tool
+#    - if the user gives their name, automatically update the user's name using "update_user_name" tool
+#    - Get the user's birthdate using "get_user_birthdate" tool
+#    - if the user gives their birthdate, automatically update the user's birthdate using "update_user_birthdate" tool
+#    - Get the user's location using "get_user_location" tool
+#    - if the user gives their location, automatically update the user's location using "update_user_location" tool
+#    - Get the user's gender using "get_user_gender" tool
+#    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
+#    - Search the internet for the user's answer using the "search_agent" as a tool
+#    - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
 
 
 # Personality Assessment:
@@ -473,6 +562,7 @@ AI: What kind of stories did he tell?
                get_user_birthdate, update_user_birthdate,
                get_user_location, update_user_location,
                get_user_gender, update_user_gender,
+               clear_history,
                #retrieve_personalized_info_about_user,
                search_agent.as_tool(
                    tool_name="web_search",
@@ -500,7 +590,7 @@ AI: What kind of stories did he tell?
             
             return AIResponse(response=final_output, error=ErrorResponse(error=False, message=""))
         
-        else:
+        else:            
             # Streaming: run the agent in streaming mode
             response : RunResultStreaming = Runner.run_streamed(starting_agent=convo_lead_agent, input=user_input.message)
 
@@ -583,7 +673,7 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     #logging.info(f"Costs: {costs}")
 
     # replace history with summary
-    if len(history) >= 1: #summarize:
+    if len(history) >= summarize:
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
 
@@ -628,3 +718,29 @@ async def stream_response(user_input: UserInput):
         
 
 
+def format_context_block(memories: List[Dict]) -> str:
+    """
+    Takes simplified memory dicts and formats them into a human-readable string block for prompt injection.
+    """
+    if not memories:
+        return "None available."
+
+    lines = []
+    for mem in memories:
+        if isinstance(mem, dict):
+            date = mem.get("date", "Unknown Date")
+            text = mem.get("knowledge_text", "[No text]")
+            lines.append(f"- ({date}) {text}")
+        else:
+            # If somehow a non-dict sneaks in, just log it and skip
+            print(f"⚠️ Skipped non-dict memory item: {mem}")
+
+    return "\n".join(lines)
+
+
+@function_tool
+def clear_history(user_id: str):
+    """
+    Clears the history for the user.
+    """
+    return clear_conversation_history(user_id)

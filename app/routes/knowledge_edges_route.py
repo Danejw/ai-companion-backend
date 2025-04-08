@@ -5,7 +5,7 @@ from uuid import UUID
 
 from app.auth import verify_token
 from app.function.memory_extraction import MemoryResponse
-from app.supabase.knowledge_edges import get_connected_memories
+from app.supabase.knowledge_edges import get_connected_memories, simplify_related_memories
 
 
 
@@ -31,15 +31,4 @@ async def related_memories(
     """
     #user_id = user["id"]
     results = get_connected_memories(user_id, source_id, relation_type, min_score)
-    
-    simplified = [
-        {
-            "id": memory["id"],
-            "knowledge_text": memory["knowledge_text"],
-            "timestamp": memory["timestamp"]
-        }
-        for memory in results
-        if "id" in memory and "knowledge_text" in memory
-    ]
-
-    return simplified
+    return results

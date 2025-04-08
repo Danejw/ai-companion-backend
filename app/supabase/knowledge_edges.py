@@ -62,8 +62,6 @@ RELATION TYPE EXPLANATION:
 
 """
 
-
-
 def get_relation_type(memory_a: Dict, memory_b: Dict) -> List[str]:
     relation_types = []
 
@@ -162,9 +160,6 @@ def get_relation_type(memory_a: Dict, memory_b: Dict) -> List[str]:
     return relation_types
 
 
-
-
-
 def create_knowledge_edges(user_id: UUID, source_id: UUID, source_embedding: List[float], source_metadata: dict, top_k: int = 5):
     try:
         # 1. Get all other memories for this user
@@ -235,8 +230,7 @@ def create_knowledge_edges(user_id: UUID, source_id: UUID, source_embedding: Lis
 
     except Exception as e:
         logging.error(f"Error creating knowledge edges: {e}")
-        
-        
+                
         
 def get_connected_memories(user_id: UUID, source_id: UUID, relation_type: Optional[str] = None, min_score: float = 0.75):
     """
@@ -277,4 +271,33 @@ def get_connected_memories(user_id: UUID, source_id: UUID, relation_type: Option
     )
 
     # return a filtered list of connected memories
-    return memory_response.data
+    simplified_response = simplify_related_memories(memory_response.data)
+    return simplified_response
+
+
+def simplify_related_memories(memories: List[Dict]):
+    simplified = []
+
+    for memory in memories: 
+        if "id" in memory and "knowledge_text" in memory:
+            readable_date = ""
+            try:
+                # Parse metadata if it's a string
+                metadata = memory.get("metadata", {})
+                if isinstance(metadata, str):
+                    metadata = json.loads(metadata)
+                
+                if "timestamp" in metadata:
+                    dt = datetime.datetime.fromisoformat(metadata["timestamp"])
+                    readable_date = dt.strftime("%b %d, %Y")  # e.g. "Apr 07, 2025"
+            except Exception as e:
+                logging.error(f"Error parsing date: {e}")
+                pass  # fallback if timestamp is malformed
+
+            simplified.append({
+                "date": readable_date,
+                "knowledge_text": memory["knowledge_text"],
+            })
+
+    return simplified
+

@@ -113,15 +113,17 @@ def append_message_to_history(user_id: str, role: str, content: str) -> list[Mes
     update_conversation_history(user_id, history)
     return history
 
-def clear_conversation_history(user_id: str):
+def clear_conversation_history(user_id: str) -> bool:
     """
     Clears the conversation history for the given user_id.
     """
     try:
         response = supabase.table("conversation_history").update({"history": []}).eq("user_id", user_id).execute()
         logging.info(f"Cleared conversation history for user {user_id}.")
+        return True
     except Exception as e:
         logging.error(f"Error clearing conversation history for user {user_id}: {e}")
+        return False
 
 async def replace_conversation_history_with_summary(user_id: str, extract: bool = True) -> list[Message]:
     """
