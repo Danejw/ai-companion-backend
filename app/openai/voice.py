@@ -1,8 +1,9 @@
 import asyncio
 from enum import Enum
 from io import BytesIO
+import io
 import random
-
+from pydub import AudioSegment
 from fastapi import File, UploadFile
 import numpy as np
 import sounddevice as sd
@@ -292,38 +293,51 @@ async def voice_assistant_optimized():
         print("---")
 
 async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, audio: UploadFile = File(...)) -> BytesIO:
-    # samplerate = sd.query_devices(kind='input')['default_samplerate']
+    # 1. Set TTS voice and initialize pipeline config
     custom_tts_settings.voice = voice.value
     voice_pipeline_config = VoicePipelineConfig(tts_settings=custom_tts_settings)
 
-    # Read the uploaded audio and convert to numpy array
+    # 2. Read the uploaded audio file
     audio_bytes = await audio.read()
-    recording = np.frombuffer(audio_bytes, dtype=np.int16)
+    print("Incoming audio type:", audio.content_type)
 
-    # Initialize pipeline with the agent and config
+    # 3. Convert the uploaded WebM/MP3 to raw PCM (int16) for OpenAI SDK
+    segment = AudioSegment.from_file(BytesIO(audio_bytes), format="webm")
+    segment = segment.set_channels(1).set_frame_rate(24000).set_sample_width(2)
+    buffer = np.array(segment.get_array_of_samples(), dtype=np.int16)
+
+    # 4. Prepare pipeline input
+    audio_input = AudioInput(buffer=buffer)
     pipeline = VoicePipeline(workflow=SingleAgentVoiceWorkflow(agent), config=voice_pipeline_config)
-    audio_input = AudioInput(buffer=recording)
 
-    # Run agent pipeline
+    # 5. Run the agent on the audio input
     with trace("Knolia Voice Assistant"):
         result = await pipeline.run(audio_input)
 
-    # Stream response chunks and collect them
+    # 6. Collect response audio from the agent (raw PCM chunks)
     response_chunks = []
     async for event in result.stream():
         if event.type == "voice_stream_event_audio":
             response_chunks.append(event.data)
-        elif event.type == "voice_stream_event_lifecycle":
-            pass
-        elif event.type == "voice_stream_event_error":
-            pass
 
-    # Join and return the audio response
     if not response_chunks:
         raise ValueError("No audio returned from voice pipeline.")
 
+    # 7. Combine raw audio and convert to MP3 using pydub
     response_audio = np.concatenate(response_chunks, axis=0)
-    return BytesIO(response_audio.tobytes())
+    pcm_bytes = response_audio.tobytes()
+    pcm_segment = AudioSegment(
+        data=pcm_bytes,
+        sample_width=2,
+        frame_rate=24000,
+        channels=1
+    )
+
+    mp3_io = BytesIO()
+    pcm_segment.export(mp3_io, format="mp3")
+    mp3_io.seek(0)
+
+    return mp3_io 
 
 
 
