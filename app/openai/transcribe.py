@@ -1,4 +1,5 @@
 import asyncio
+from io import BytesIO
 import tempfile
 from fastapi import UploadFile
 from fastapi.responses import StreamingResponse
@@ -22,6 +23,16 @@ async def speech_to_text(file : UploadFile, model: str = "whisper-1") -> str:
         with open(tmp_file.name, "rb") as audio_file:
             transcript = client.audio.transcriptions.create(model=model, file=audio_file)   
    
+    return transcript.text
+
+
+def speech_to_text_from_bytes(file: BytesIO, model: str = "whisper-1") -> str:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+        tmp_file.write(file.getbuffer())
+        tmp_file.flush()
+
+    with open(tmp_file.name, "rb") as audio_file:
+        transcript = client.audio.transcriptions.create(model=model, file=audio_file)
     return transcript.text
 
 
