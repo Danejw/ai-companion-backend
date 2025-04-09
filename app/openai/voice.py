@@ -7,13 +7,12 @@ import tempfile
 from pydub import AudioSegment
 from fastapi import File, UploadFile
 import numpy as np
-import sounddevice as sd
 from agents.voice import AudioInput, SingleAgentVoiceWorkflow, VoicePipeline, TTSModelSettings, VoicePipelineConfig
 from agents import Agent, FileSearchTool, WebSearchTool, function_tool, trace
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
 
 
-sd.default.samplerate = 24000  # Set to your desired sampling rate
+#sd.default.samplerate = 24000  # Set to your desired sampling rate
 samplerate = 24000 #44100
 
 model = "gpt-4o-mini-tts"
@@ -96,12 +95,6 @@ def get_weather(city: str) -> str:
     return f"The weather in {city} is {random.choice(choices)}."
 
 
-def get_default_input_device_info():
-    default_input_device_info = sd.query_devices(kind='input')
-    print(default_input_device_info)
-    return default_input_device_info
-    
-    
 
 spanish_agent = Agent(
     name="Spanish",
@@ -241,10 +234,10 @@ async def voice_assistant():
         response_audio = np.concatenate(response_chunks, axis=0)
 
         # Play response
-        print("Assistant is responding...")
-        sd.play(response_audio, samplerate=samplerate)
-        sd.wait()
-        print("---")
+        # print("Assistant is responding...")
+        # sd.play(response_audio, samplerate=samplerate)
+        # sd.wait()
+        # print("---")
 
 async def voice_assistant_optimized():
     # samplerate = sd.query_devices(kind='input')['default_samplerate']
@@ -262,8 +255,8 @@ async def voice_assistant_optimized():
         recorded_chunks = []
 
          # Start streaming from microphone until Enter is pressed
-        with sd.InputStream(samplerate=samplerate, channels=1, dtype='int16', callback=lambda indata, frames, time, status: recorded_chunks.append(indata.copy())):
-            input()
+        # with sd.InputStream(samplerate=samplerate, channels=1, dtype='int16', callback=lambda indata, frames, time, status: recorded_chunks.append(indata.copy())):
+            # input()
 
         if recorded_chunks: 
             # Concatenate chunks into single buffer
@@ -287,11 +280,11 @@ async def voice_assistant_optimized():
             response_audio = np.concatenate(response_chunks, axis=0)
 
         # Play response
-        print("Assistant is responding...")
-        if response_audio:  
-            sd.play(response_audio, samplerate=samplerate)
-            sd.wait()
-        print("---")
+        # print("Assistant is responding...")
+        # if response_audio:  
+        #     sd.play(response_audio, samplerate=samplerate)
+        #     sd.wait()
+        # print("---")
 
 
 
