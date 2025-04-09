@@ -9,10 +9,8 @@ from fastapi import File, UploadFile
 import numpy as np
 import sounddevice as sd
 from agents.voice import AudioInput, SingleAgentVoiceWorkflow, VoicePipeline, TTSModelSettings, VoicePipelineConfig
-from agents import Agent, FileSearchTool, Runner, WebSearchTool, function_tool, trace
+from agents import Agent, FileSearchTool, WebSearchTool, function_tool, trace
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
-
-from app.openai.transcribe import transcribe_audio_whisper
 
 
 sd.default.samplerate = 24000  # Set to your desired sampling rate
