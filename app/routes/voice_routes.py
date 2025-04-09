@@ -22,7 +22,7 @@ async def voice_assistant(voice: Voices = Voices.ALLOY, audio: UploadFile = File
 
             # 2. Transcribe using Whisper with the file path
             with open(tmp_file.name, "rb") as audio_file:
-                transcript = speech_to_text(audio_file)
+                transcript = await speech_to_text(audio_file)
                 
             print("Transcript: ", transcript)
 
