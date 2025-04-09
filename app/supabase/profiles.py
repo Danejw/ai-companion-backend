@@ -174,15 +174,18 @@ class ProfileRepository:
                 return False
             
             current_credits = self.get_user_credit(user_id)
+            current_credits_used = self.get_user_credits_used(user_id)
             
             if current_credits is None or current_credits < amount:
                 logging.error(f"Insufficient credits for user {user_id}")
                 return False
             
-            new_credits = current_credits - amount
+            deducted_credits = current_credits - amount
+            new_used_credits = current_credits_used + amount
+            
  
-            credits = self.supabase.table(self.table_name).update({"credits": new_credits}).eq("id", user_id).execute()
-            credits_used = self.supabase.table(self.table_name).update({"credits_used": amount}).eq("id", user_id).execute()
+            credits = self.supabase.table(self.table_name).update({"credits": deducted_credits}).eq("id", user_id).execute()
+            credits_used = self.supabase.table(self.table_name).update({"credits_used": new_used_credits}).eq("id", user_id).execute()
             return True
         except Exception as e:
             logging.error(f"Failed to deduct credits for user {user_id}: {e}")
