@@ -317,10 +317,7 @@ async def convo_lead(user_input: UserInput, summarize: int = 10, extract: bool =
         history = append_message_to_history(user_id, "user", user_input.message)
     else:
         history = append_message_to_history(user_id, user_name, user_input.message)
-    
-
-    print("Is Safe: ", is_safe)
-    
+        
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
     ocean_service = OceanAnalysisService(user_id)
@@ -337,10 +334,7 @@ async def convo_lead(user_input: UserInput, summarize: int = 10, extract: bool =
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
     #relational_context = get_connected_memories(user_id, ##############) <-- source id
-
-
-    print("MBTI Type: ", mbti_type)
-
+    
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
  
