@@ -10,12 +10,6 @@ from app.stripe.stripe_config import STRIPE_CONFIG
 
 app = FastAPI()
 
-# Configure logging at the start of the file
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -25,10 +19,20 @@ ENV = os.getenv("ENV")
 
 if ENV == "development":
     ALLOWED_ORIGINS = ["*"]  # ✅ Allow all origins in development
+    
+    # Configure logging at the start of the file
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 else:
     ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
-
-
+    
+    # Configure logging at the start of the file
+    logging.basicConfig(
+        level=logging.ERROR,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
 
 
 app.add_middleware(
