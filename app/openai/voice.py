@@ -3,6 +3,7 @@ from enum import Enum
 from io import BytesIO
 import io
 import random
+import tempfile
 from pydub import AudioSegment
 from fastapi import File, UploadFile
 import numpy as np
@@ -10,6 +11,8 @@ import sounddevice as sd
 from agents.voice import AudioInput, SingleAgentVoiceWorkflow, VoicePipeline, TTSModelSettings, VoicePipelineConfig
 from agents import Agent, FileSearchTool, Runner, WebSearchTool, function_tool, trace
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
+
+from app.openai.transcribe import transcribe_audio_whisper
 
 
 sd.default.samplerate = 24000  # Set to your desired sampling rate
@@ -292,6 +295,8 @@ async def voice_assistant_optimized():
             sd.wait()
         print("---")
 
+
+
 async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, audio: UploadFile = File(...)) -> BytesIO:
     # 1. Set TTS voice and initialize pipeline config
     custom_tts_settings.voice = voice.value
@@ -299,17 +304,30 @@ async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, aud
 
     # 2. Read the uploaded audio file
     audio_bytes = await audio.read()
-    print("Incoming audio type:", audio.content_type)
+    
+    # Determine the format based on MIME type
+    if audio.content_type == "audio/webm":
+        input_format = "webm"
+    elif audio.content_type == "audio/mpeg" or audio.content_type == "audio/mp3":
+        input_format = "mp3"
+    elif audio.content_type == "audio/wav":
+        input_format = "wav"
+    else:
+        raise ValueError(f"Unsupported audio format: {audio.content_type}")
+    
 
     # 3. Convert the uploaded WebM/MP3 to raw PCM (int16) for OpenAI SDK
-    segment = AudioSegment.from_file(BytesIO(audio_bytes), format="webm")
+    segment = AudioSegment.from_file(BytesIO(audio_bytes), format=input_format)
     segment = segment.set_channels(1).set_frame_rate(24000).set_sample_width(2)
     buffer = np.array(segment.get_array_of_samples(), dtype=np.int16)
 
     # 4. Prepare pipeline input
     audio_input = AudioInput(buffer=buffer)
     pipeline = VoicePipeline(workflow=SingleAgentVoiceWorkflow(agent), config=voice_pipeline_config)
-
+    
+    
+    
+    
     # 5. Run the agent on the audio input
     with trace("Knolia Voice Assistant"):
         result = await pipeline.run(audio_input)
@@ -337,7 +355,7 @@ async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, aud
     pcm_segment.export(mp3_io, format="mp3")
     mp3_io.seek(0)
 
-    return mp3_io 
+    return mp3_io
 
 
 

@@ -36,7 +36,8 @@ app.add_middleware(
     allow_origins=ALLOWED_ORIGINS,  # Use environment-based CORS
     allow_credentials=True,
     allow_methods=["*"],  # Allow all HTTP methods
-    allow_headers=["*"],  # Allow all headers
+    allow_headers=["*"],
+    expose_headers=["X-Transcript"], # Allow all headers
 )
 
 
@@ -60,6 +61,7 @@ from app.routes.conversation_routes import router as conversation_router
 from app.routes.vector_routes import router as vector_router
 from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
+from app.routes.transcribe_router import router as transcribe_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -68,7 +70,7 @@ app.include_router(ocean_router, prefix="/ocean", tags=["OCEAN"])
 app.include_router(knowledge_router, prefix="/knowledge", tags=["Knowledge"])
 app.include_router(knowledge_edges_router, prefix="/knowledge_edges", tags=["Knowledge Edges"])
 app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
-app.include_router(stripe_router, prefix="/app/stripe", tags=["stripe"])
+app.include_router(stripe_router, prefix="/app/stripe", tags=["Stripe"])
 app.include_router(slang_router, prefix="/slang", tags=["Slang"])
 app.include_router(moderation_router, prefix="/moderation", tags=["Moderation"])
 app.include_router(intent_classifier_router, prefix="/intent", tags=["Intent"])
@@ -79,7 +81,7 @@ app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
-
+app.include_router(transcribe_router, prefix="/voice", tags=["Voice"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
