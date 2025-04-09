@@ -61,7 +61,7 @@ from app.routes.conversation_routes import router as conversation_router
 from app.routes.vector_routes import router as vector_router
 from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
-from app.routes.transcribe_router import router as transcribe_router
+
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -81,7 +81,7 @@ app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
-app.include_router(transcribe_router, prefix="/voice", tags=["Voice"])
+
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
