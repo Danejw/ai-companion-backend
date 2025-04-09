@@ -45,7 +45,7 @@ async def voice_assistant(voice: Voices = Voices.ALLOY, audio: UploadFile = File
   
   
 @router.post("/speech-to-text")
-async def stt(audio: UploadFile = File(...)):#, user_id: str = Depends(verify_token)):
+async def stt(audio: UploadFile = File(...), user_id: str = Depends(verify_token)):
     try:
         transcript = await speech_to_text(audio)
         return transcript
@@ -54,7 +54,7 @@ async def stt(audio: UploadFile = File(...)):#, user_id: str = Depends(verify_to
   
     
 @router.post("/text-to-speech")
-async def tts(text: str, voice: Voices = Voices.ALLOY):#, user_id: str = Depends(verify_token)):
+async def tts(text: str, voice: Voices = Voices.ALLOY, user_id: str = Depends(verify_token)):
     try:
         return await text_to_speech(text, voice)
     except Exception as e:
