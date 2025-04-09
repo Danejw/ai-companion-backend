@@ -1,9 +1,7 @@
 import asyncio
 from enum import Enum
 from io import BytesIO
-import io
 import random
-import tempfile
 from pydub import AudioSegment
 from fastapi import File, UploadFile
 import numpy as np
@@ -206,8 +204,8 @@ async def voice_assistant():
         recorded_chunks = []
 
          # Start streaming from microphone until Enter is pressed
-        with sd.InputStream(samplerate=samplerate, channels=1, dtype='int16', callback=lambda indata, frames, time, status: recorded_chunks.append(indata.copy())):
-            input()
+        # with sd.InputStream(samplerate=samplerate, channels=1, dtype='int16', callback=lambda indata, frames, time, status: recorded_chunks.append(indata.copy())):
+        #     input()
 
         # Concatenate chunks into single buffer
         recording = np.concatenate(recorded_chunks, axis=0)
