@@ -262,12 +262,12 @@ async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio:
 async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):
     
     # Initialize analysis services and retrieve context info
-    # mbti_service = MBTIAnalysisService(user_id)
-    # ocean_service = OceanAnalysisService(user_id)
-    # slang_service = SlangExtractionService(user_id)
-    # memory_service = MemoryExtractionService(user_id)
-    # intent_service = IntentClassificationService(user_id)
-    # tpb_service = TheoryPlannedBehaviorService(user_id)
+    mbti_service = MBTIAnalysisService(user_id)
+    ocean_service = OceanAnalysisService(user_id)
+    slang_service = SlangExtractionService(user_id)
+    memory_service = MemoryExtractionService(user_id)
+    intent_service = IntentClassificationService(user_id)
+    tpb_service = TheoryPlannedBehaviorService(user_id)
     
     
     # Moderation, name lookup, and history updates
@@ -279,33 +279,31 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     
 
     # Check if the user has enough credits.
-    # credits = profile_repo.get_user_credit(user_id)
-    # if credits is None or credits < 1:
-    #     async def error_stream():
-    #         yield json.dumps({"error": "NO_CREDITS"}) + "\n"
-    #     return error_stream
+    credits = profile_repo.get_user_credit(user_id)
+    if credits is None or credits < 1:
+        async def error_stream():
+            yield json.dumps({"error": "NO_CREDITS"}) + "\n"
+        return error_stream
 
 
-    # user_name = profile_repo.get_user_name(user_id)
-    # if user_name is None:
-    #     history = append_message_to_history(user_id, "user", user_input)
-    # else:
-    #     history = append_message_to_history(user_id, user_name, user_input)
-        
-    # print(f"User Name: {user_name}")
-    
+    user_name = profile_repo.get_user_name(user_id)
+    if user_name is None:
+        history = append_message_to_history(user_id, "user", user_input)
+    else:
+        history = append_message_to_history(user_id, user_name, user_input)
+            
 
-    # mbti_type = mbti_service.get_mbti_type()
-    # style_prompt = mbti_service.generate_style_prompt(mbti_type)
-    # ocean_traits = ocean_service.get_personality_traits()
-    # slang_result = slang_service.retrieve_similar_slang(user_input)
-    # history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
+    mbti_type = mbti_service.get_mbti_type()
+    style_prompt = mbti_service.generate_style_prompt(mbti_type)
+    ocean_traits = ocean_service.get_personality_traits()
+    slang_result = slang_service.retrieve_similar_slang(user_input)
+    history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
     #relational_context = get_connected_memories(user_id, ##############) <-- source id
     
     
     # Intent classification
-    # intent = await intent_service.classify_intent(history_string)
+    intent = await intent_service.classify_intent(history_string)
  
     # print(f"\n--------- Intent Classifaction ---------\n")
     # print(f"Intent: {intent.intent_label}")
@@ -317,43 +315,44 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     # print(f"Reasoning: {intent.reasoning}")
     # print(f"\n----------------------------------------\n")
 
-    # memory_string = ""
-    # relational_context_string = ""
+    memory_string = ""
+    relational_context_string = ""
    
-    # if intent.confidence_score < 0.85:
-    #     intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
-    # else:
-    #     similar_memories = memory_service.vector_search(user_input, limit=1)
-    #     memory_string = similar_memories[0]['knowledge_text']
-    #     if similar_memories and len(similar_memories) > 0:
+    if intent.confidence_score < 0.85:
+        intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
+    else:
+        similar_memories = memory_service.vector_search(user_input, limit=1)
+        memory_string = similar_memories[0]['knowledge_text']
+        if similar_memories and len(similar_memories) > 0:
             
-    #         print(f"\n--------- Similar Memories ---------\n")
-    #         print(f"Id: {similar_memories[0]['id']}")
-    #         print(f"{memory_string}")
-    #         print(f"\n----------------------------------------\n")
+            print(f"\n--------- Similar Memories ---------\n")
+            print(f"Id: {similar_memories[0]['id']}")
+            print(f"{memory_string}")
+            print(f"\n----------------------------------------\n")
             
-    #         relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
+            relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
             
-    #         print(f"\n--------- Relational Context ---------\n")
+            print(f"\n--------- Relational Context ---------\n")
             
-    #         for memory in relational_context:
-    #             print(f"{memory}")            
-    #         # TODO: relational_context_string += format_context_block(relational_context) + "\n"
+            for memory in relational_context:
+                print(f"{memory}")            
+            # TODO: relational_context_string += format_context_block(relational_context) + "\n"
 
                 
-    #         print(f"\n----------------------------------------\n")
+            print(f"\n----------------------------------------\n")
                 
-    #     else:
-    #         print("No similar memories found")
+        else:
+            print("No similar memories found")
            
         
     # # Behavior classification
-    # tpb = await tpb_service.classify_behavior(history_string)
-    # if tpb.confidence_score < 0.85:
-    #     tpb = "Unconfident in the behavior analysis of the user"
+    tpb = await tpb_service.classify_behavior(history_string)
+    if tpb.confidence_score < 0.85:
+        tpb = "Unconfident in the behavior analysis of the user"
 
     agent_name = "Noelle"
     instructions = f"""
+Your name is {agent_name} who is a conversationalist
 
 IMPORTANT RULE:
 - At the end of your response, ONLY ASK ONE QUESTION AT A TIME AND ONLY ASK a question if it enhances the conversation.
@@ -369,6 +368,32 @@ IMPORTANT RULE:
 - Explore deeper emotional anchors when relational context is absent
 - Avoid repeating similar reflective tones across multiple turns. Vary rhythm and language style to feel more like a dynamic human conversation.
 
+Use this with your response to the user (do not repeat the same information):
+Similar Memories:
+{memory_string}
+
+Relational Context:
+{relational_context_string}
+
+CONVERSATION HISTORY:
+{history_string}
+    
+USER CONTEXT:
+- User ID: {user_id}
+- Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
+- Current Message: {user_input}
+
+
+PERSONALITY INSIGHTS:
+- OCEAN Profile: {ocean_traits}
+- MBTI Type: {mbti_type}
+- Communication Style: {style_prompt}
+
+
+USER BEHAVIOR ANALYSIS:
+- Intent: {intent}
+- Behavior Pattern: {tpb}
+- Language Style: {slang_result}
 
 
 """
@@ -378,33 +403,6 @@ IMPORTANT RULE:
 # Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
 # Your name is {agent_name} who is a conversationalist
-
-# Use this with your response to the user (do not repeat the same information):
-# Similar Memories:
-# {memory_string}
-
-# Relational Context:
-# {relational_context_string}
-
-# CONVERSATION HISTORY:
-# {history_string}
-    
-# USER CONTEXT:
-# - User ID: {user_id}
-# - Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
-# - Current Message: {user_input}
-
-
-# PERSONALITY INSIGHTS:
-# - OCEAN Profile: {ocean_traits}
-# - MBTI Type: {mbti_type}
-# - Communication Style: {style_prompt}
-
-
-# USER BEHAVIOR ANALYSIS:
-# - Intent: {intent}
-# - Behavior Pattern: {tpb}
-# - Language Style: {slang_result}
 
 
 # CONVERSATION GUIDELINES:
@@ -531,22 +529,23 @@ IMPORTANT RULE:
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini" # "o3-mini"
-        # tools=[get_users_name, update_user_name,
-        #        get_user_birthdate, update_user_birthdate,
-        #        get_user_location, update_user_location,
-        #        get_user_gender, update_user_gender,
-        #        clear_history,
-        #        #retrieve_personalized_info_about_user,
-        #        search_agent.as_tool(
-        #            tool_name="web_search",
-        #            tool_description="Search the internet for the user's answer."
-        #        ),
-        #        memory_agents.agent.as_tool(
-        #            tool_name="memory_search",
-        #            tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
-        #        )
-        # ]
+        model="gpt-4o-mini", # "o3-mini"
+        tools=[
+            get_users_name, update_user_name,
+            get_user_birthdate, update_user_birthdate,
+            get_user_location, update_user_location,
+            get_user_gender, update_user_gender,
+            clear_history,
+            retrieve_personalized_info_about_user,
+            search_agent.as_tool(
+                tool_name="web_search",
+                tool_description="Search the internet for the user's answer."
+            ),
+            memory_agents.agent.as_tool(
+                tool_name="memory_search",
+                tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
+            )
+        ]
     )
     
     
