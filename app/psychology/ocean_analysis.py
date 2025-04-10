@@ -12,6 +12,19 @@ class OceanResponse(BaseModel):
     extraversion: float
     agreeableness: float
     neuroticism: float
+    
+class OceanDimension(BaseModel):
+    trait: str
+    level: str
+    score: float
+    description: str
+    
+class OceanFormat(BaseModel):
+    openness: OceanDimension
+    conscientiousness: OceanDimension
+    extraversion: OceanDimension
+    agreeableness: OceanDimension
+    neuroticism: OceanDimension
 
 instructions = """
 You are an expert in personality analysis using the OCEAN (Big Five) personality framework. You will analyze the given message and return a detailed personality assessment.
@@ -63,12 +76,14 @@ class OceanAnalysisService:
         self.ocean = self.repository.get_ocean(self.user_id) or Ocean()
         self.load_ocean()
 
-    def load_ocean(self):
+    def load_ocean(self) -> Ocean:
         stored_ocean = self.repository.get_ocean(self.user_id)
         if stored_ocean:
             self.ocean = stored_ocean
+            return self.ocean
         else:
             logging.ERROR(f"No existing OCEAN data for user {self.user_id}. Using defaults.")
+            return None
 
     def save_ocean(self):
         self.repository.upsert_ocean(self.user_id, self.ocean)
@@ -119,46 +134,57 @@ class OceanAnalysisService:
         self.ocean.neuroticism = update_dimension(self.ocean.neuroticism, new_ocean.neuroticism)
         self.ocean.response_count = new_count
 
-    def get_personality_traits(self) -> dict:
+    def get_trait_description(self, score: float, trait: str) -> OceanDimension:
+        level = "High" if score >= 0.5 else "Low"
+        descriptions = {
+            "openness": {
+                "High": "Curious and open to new experiences",
+                "Low": "Traditional and prefers routine"
+            },
+            "conscientiousness": {
+                "High": "Organized and goal-oriented",
+                "Low": "Flexible and spontaneous"
+            },
+            "extraversion": {
+                "High": "Outgoing and sociable",
+                "Low": "Reserved and introspective"
+            },
+            "agreeableness": {
+                "High": "Compassionate and cooperative",
+                "Low": "Direct and self-focused"
+            },
+            "neuroticism": {
+                "High": "Emotionally sensitive",
+                "Low": "Emotionally stable"
+            }
+        }
+        
+        return OceanDimension(
+            trait=trait,
+            level=level,
+            score=score,
+            description=descriptions[trait][level]
+        )
+
+    def get_personality_traits(self) -> OceanFormat:
         """
         Returns the current OCEAN scores as personality traits with detailed descriptions.
         """
-        def get_trait_description(score: float, trait: str) -> dict:
-            level = "High" if score >= 0.5 else "Low"
-            descriptions = {
-                "openness": {
-                    "High": "Curious and open to new experiences",
-                    "Low": "Traditional and prefers routine"
-                },
-                "conscientiousness": {
-                    "High": "Organized and goal-oriented",
-                    "Low": "Flexible and spontaneous"
-                },
-                "extraversion": {
-                    "High": "Outgoing and sociable",
-                    "Low": "Reserved and introspective"
-                },
-                "agreeableness": {
-                    "High": "Compassionate and cooperative",
-                    "Low": "Direct and self-focused"
-                },
-                "neuroticism": {
-                    "High": "Emotionally sensitive",
-                    "Low": "Emotionally stable"
-                }
-            }
-            return {
-                "level": level,
-                "score": round(score, 2),
-                "description": descriptions[trait][level]
-            }
-
-        return {
-            "openness": get_trait_description(self.ocean.openness, "openness"),
-            "conscientiousness": get_trait_description(self.ocean.conscientiousness, "conscientiousness"),
-            "extraversion": get_trait_description(self.ocean.extraversion, "extraversion"),
-            "agreeableness": get_trait_description(self.ocean.agreeableness, "agreeableness"),
-            "neuroticism": get_trait_description(self.ocean.neuroticism, "neuroticism")
-        }
+        return OceanFormat(
+            openness=self.get_trait_description(self.ocean.openness, "openness"),
+            conscientiousness=self.get_trait_description(self.ocean.conscientiousness, "conscientiousness"),
+            extraversion=self.get_trait_description(self.ocean.extraversion, "extraversion"),
+            agreeableness=self.get_trait_description(self.ocean.agreeableness, "agreeableness"),
+            neuroticism=self.get_trait_description(self.ocean.neuroticism, "neuroticism")
+        )
 
 
+    def get_pretty_print_ocean_format(self) -> str:
+        ocean = self.get_personality_traits()
+        return f"""
+        Openness: {ocean.openness.level} ({ocean.openness.score}) - {ocean.openness.description}
+        Conscientiousness: {ocean.conscientiousness.level} ({ocean.conscientiousness.score}) - {ocean.conscientiousness.description}
+        Extraversion: {ocean.extraversion.level} ({ocean.extraversion.score}) - {ocean.extraversion.description}
+        Agreeableness: {ocean.agreeableness.level} ({ocean.agreeableness.score}) - {ocean.agreeableness.description}
+        Neuroticism: {ocean.neuroticism.level} ({ocean.neuroticism.score}) - {ocean.neuroticism.description}
+        """

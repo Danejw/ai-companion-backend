@@ -100,3 +100,9 @@ async def get_ocean_traits(user=Depends(verify_token)):
     }
 
 
+@router.get("/ocean-pretty-print")
+async def get_ocean_pretty_print(user : str):
+    service = OceanAnalysisService(user)
+    return service.get_pretty_print_ocean_format()
+
+

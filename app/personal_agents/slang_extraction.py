@@ -72,3 +72,8 @@ class SlangExtractionService:
         Retrieve stored slang that is similar to the given query.
         """
         return find_similar_slang(self.user_id, query, top_k)
+
+    # TODO: Add a pretty print function for the slang results
+    def pretty_print_slang_result(self, slang: SlangResult) -> str:
+        return 
+

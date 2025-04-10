@@ -275,7 +275,11 @@ def get_connected_memories(user_id: UUID, source_id: UUID, relation_type: Option
     return simplified_response
 
 
-def simplify_related_memories(memories: List[Dict]):
+class SimplifiedMemory(BaseModel):
+    date: str
+    text: str
+
+def simplify_related_memories(memories: List[Dict]) -> List[SimplifiedMemory]:
     simplified = []
 
     for memory in memories: 
@@ -294,10 +298,7 @@ def simplify_related_memories(memories: List[Dict]):
                 logging.error(f"Error parsing date: {e}")
                 pass  # fallback if timestamp is malformed
 
-            simplified.append({
-                "date": readable_date,
-                "knowledge_text": memory["knowledge_text"],
-            })
+            simplified.append(SimplifiedMemory(date=readable_date, text=memory["knowledge_text"]))
 
     return simplified
 
