@@ -3,6 +3,7 @@ import requests
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
+
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1/user"
@@ -26,8 +27,11 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     logging.info(f"🔍 Supabase Verification Status: {response.status_code}, Response: {response.json()}")
 
     if response.status_code != 200:
-        return {"error": "NOT_AUTHENTICATED"}
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        error_detail = {"error": "NOT_AUTHENTICATED"}
+        raise HTTPException(
+            status_code=401,
+            detail=error_detail
+        )
 
     user_data = response.json()
     

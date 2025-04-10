@@ -324,9 +324,10 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     if intent.confidence_score < 0.85:
         intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
     else:
-        #if intent.memory_trigger:
+        if intent.memory_trigger:
             similar_memories = memory_service.vector_search(user_input, limit=1)
             memory_string = similar_memories[0]['knowledge_text']
+            
             if similar_memories and len(similar_memories) > 0:
             
                 print(f"\n--------- Similar Memories ---------\n")
@@ -357,56 +358,21 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
 
     agent_name = "Noelle"
     instructions = f"""
-Your name is {agent_name} who is a conversationalist
+    ABSOLUTELY NO QUESTIONS!
 
-IMPORTANT RULE:
-- At the end of your response, ONLY ASK ONE QUESTION AT A TIME AND ONLY ASK a question if it enhances the conversation.
-
-- When referencing memories, weave them into the conversation naturally using emotionally resonant language.
-- When referencing relational context, subtly reflect the user's experiences.
-- Reflect back patterns from user’s creative or reflective routines (e.g., walking, journaling, morning stillness) to deepen the connection.
-- Repetition of "clarity" and "heavy thoughts" unless it’s echoed freshly.
-- Mirror the user's language and communication style.
-- If no relational context is retrieved, reference the most relevant similar memory explicitly to enhance continuity.
-- When relevant, adapt to the user’s cultural background, tone, or dialect to build stronger connection.
-- Use the user’s previously stated rituals as anchor points to shift topics or invite exploration of new areas
-- Explore deeper emotional anchors when relational context is absent
-- Avoid repeating similar reflective tones across multiple turns. Vary rhythm and language style to feel more like a dynamic human conversation.
-
-Use this with your response to the user (do not repeat the same information):
-    Similar Memories:
-    {memory_string}
-
-    Relational Context:
-    {relational_context_string}
-
-CONVERSATION HISTORY:
-    {history_string}
+    As these models are trained more, they are more ingrained in their ways
     
-USER CONTEXT:
-- User ID: {user_id}
-- Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
-- Current Message: {user_input}
+    Prompt engineering = "NO QUESTIONS!"
 
-
-PERSONALITY INSIGHTS:
-- OCEAN Profile: {ocean_traits}
-- MBTI Type: {mbti_type}
-- Communication Style: {style_prompt}
-
-
-USER BEHAVIOR ANALYSIS:
-- Intent: {intent.reasoning}
-- Behavior Pattern: {tpb}
-- Language Style: {slang_result_pretty_print}
-
-
+Response = "I'm here to help! What would you like to discuss or ask about?"
 """
 #region
 # that leads the conversation with the user to get to know them better.
 # Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
 # Your name is {agent_name} who is a conversationalist
+
+#- Communication Style: {style_prompt}
 
 
 # CONVERSATION GUIDELINES:
@@ -514,7 +480,7 @@ USER BEHAVIOR ANALYSIS:
 #endregion
 
 
-    print("Instructions: ", instructions)
+    #print("Instructions: ", instructions)
     
     
 
@@ -523,7 +489,7 @@ USER BEHAVIOR ANALYSIS:
         handoff_description="A search agent.",
         instructions=
             "Search the internet for the user's answer.",
-        model="gpt-4o-mini",
+        model="o3-mini", #"gpt-4o",
         tools=[WebSearchTool()]
     )
     
@@ -533,7 +499,7 @@ USER BEHAVIOR ANALYSIS:
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini", # "o3-mini"
+        model="gpt-4o", # "o3-mini"
         tools=[
             get_users_name, update_user_name,
             get_user_birthdate, update_user_birthdate,

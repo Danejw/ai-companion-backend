@@ -307,7 +307,7 @@ def simplify_related_memories(memories: List[Dict]) -> List[SimplifiedMemory]:
 def pretty_print_memories(memories: list[SimplifiedMemory]) -> str:
     formatted_memories = ""
     for memory in memories:
-        formatted_memories += f""""
+        formatted_memories += f"""
         {memory.date}
         {memory.text}
         """
