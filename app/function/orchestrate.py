@@ -1,12 +1,17 @@
-import datetime
-from http.client import HTTPException
+
+
+
+
+
 import json
-import os
-from typing import Dict, List
+
+from fastapi.responses import StreamingResponse
+
+from app.openai.transcribe import speech_to_text, text_to_speech
+from app.openai.voice import Voices
 from app.personal_agents import memory_agents
 from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.function.memory_extraction import MemoryExtractionService
-from app.personal_agents.planner import PlannerService
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
 from app.psychology.intent_classification import IntentClassificationService
@@ -17,27 +22,20 @@ from app.supabase.knowledge_edges import get_connected_memories
 from app.supabase.profiles import ProfileRepository
 from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
 from app.utils.moderation import ModerationService
-from fastapi import APIRouter, Depends
+from fastapi import File, UploadFile
 from pydantic import BaseModel
 import asyncio
 import logging
-from app.auth import verify_token
-from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool, ItemHelpers, handoff, set_tracing_disabled, RunResultStreaming, WebSearchTool
+from agents import Agent, Runner, WebSearchTool, function_tool, set_tracing_disabled, RunResultStreaming, WebSearchTool
 from openai.types.responses import ResponseTextDeltaEvent
+from app.supabase.knowledge_edges import get_connected_memories
 
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
 from fastapi.responses import StreamingResponse
 
 
 
-router = APIRouter()
 
-
-class UserInput(BaseModel):
-    message: str
-    
-
-    
 class ErrorResponse(BaseModel):
     error: bool
     message: str
@@ -48,15 +46,16 @@ class AIResponse(BaseModel):
 
     
 
+
 profile_repo = ProfileRepository()
 moderation_service = ModerationService()
 user_feedback_repo = UserFeedbackRepository()
 
 
-def get_user_name(user_id: str) -> str:
-    return profile_repo.get_user_name(user_id)
 
 
+# Tools
+#region Description
 @function_tool
 def get_users_name(user_id: str) -> str:
     """
@@ -216,124 +215,90 @@ async def create_user_feedback(user_id: str, user_feedback: UserFeedback) -> str
     return user_feedback_repo.create_user_feedback(user_feedback)
 
 
-
-
-@router.post("/orchestration")
-async def orchestrate(user_input: UserInput, user=Depends(verify_token)):
+@function_tool
+def clear_history(user_id: str):
     """
-    Orchestrates sentiment analysis, personality assessments (MBTI, OCEAN),
-    knowledge extraction, similarity search, and dynamic AI response generation.
+    Clears the history for the user.
     """
-    try:
-        user_id = user["id"]
-        message = user_input.message
-        
-        logging.info(f"User ID: {user_id}")
+    return clear_conversation_history(user_id)
 
-        # Run analyses concurrently
-        mbti_service = MBTIAnalysisService(user_id)
-        mbti_task = asyncio.create_task(mbti_service.analyze_message(message))
-        
-        ocean_service = OceanAnalysisService(user_id)
-        ocean_task = asyncio.create_task(ocean_service.analyze_message(message))
+#endregion
 
-        knowledge_service = KnowledgeExtractionService(user_id)
 
-        # Wait for all tasks to complete
-        await mbti_task  # MBTI updates asynchronously
-        await ocean_task  # OCEAN updates asynchronously
-        
-        # Retrieve stored MBTI & OCEAN
-        mbti_type = mbti_service.get_mbti_type()
-        style_prompt = mbti_service.generate_style_prompt(mbti_type)
-        ocean_traits = ocean_service.get_personality_traits()
-        
-        logging.info(f"MBTI Type: {mbti_type, style_prompt}")
-        logging.info(f"OCEAN Traits: {ocean_traits}")
 
-        # Run similarity search on extracted knowledge
-        similar_knowledge = await knowledge_service.retrieve_similar_knowledge(message, top_k=3)
-
-        # Construct dynamic system prompt
-        system_prompt = (
-            f"MBTI Type: {mbti_type, style_prompt}.\n"
-            f"OCEAN Traits: {ocean_traits}.\n"
-            f"Similar Previous Knowledge: {similar_knowledge}."
-        )
-        
-        logging.info(f"System prompt: {system_prompt}")
-
-        # Generate AI response using system prompt
-        conversational_agent = Agent(
-            name="Wit",
-            handoff_description="A conversational response agent given the context.",
-            instructions= system_prompt + "\n\n You are a conversational agent. Respond to the user using the information provided.",
-            model="gpt-4o-mini",
-            tools=[
-                WebSearchTool(),
-                FileSearchTool()
-            ]
-        )
-
-        response = await Runner.run(conversational_agent, message)
-              
-        logging.info(f"Response Object: {response}")  
-
-        return response.final_output
-
-    except Exception as e:
-        logging.error(f"Error processing orchestration: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
+# Voice in Voice Out
+async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio: UploadFile = File(...), summarize: int = 10, extract: bool = True):
     
+    transcript = await speech_to_text(audio)
+    
+    print(f"Transcript: {transcript}")
+    
+    event_stream = await chat_orchestration(transcript, user_id, summarize, extract)
+    
+    full_output = ""
+    async for chunk in event_stream:
+        try:
+            data = json.loads(chunk.strip())
+            if "delta" in data:
+                full_output += data["delta"]
+        except Exception as e:
+            print(f"Failed to parse stream chunk: {chunk}, error: {e}")
+
+    print(f"Full AI Response: {full_output}")
+    
+    audio_stream = text_to_speech(full_output, voice)
+    
+    StreamingResponse(audio_stream, media_type="audio/mp3")
+
+    return audio_stream
 
 
-@router.post("/convo-lead")
-async def convo_lead(user_input: UserInput, summarize: int = 10, extract: bool = True, user=Depends(verify_token)):
-    """
-    Leads the conversation with the user. If stream is True, returns a StreamingResponse
-    with the agent's output as it arrives. Otherwise, waits for the full response and returns it.
-    """
-    user_id = user["id"]
+
+# Text in Text Out
+async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):
     
-    async def event_stream():
-        yield json.dumps({"error": "NO_CREDITS"}) + "\n"
-    
-    # Check if the user has enough credits.
-    credits = profile_repo.get_user_credit(user_id)
-    if credits is None or credits < 1:
-        return StreamingResponse(event_stream(), media_type="application/json")
-    
-    
-    async def event_stream():
-        yield json.dumps({"error": "FLAGGED_CONTENT"}) + "\n"
-    
-    # Moderation, name lookup, and history updates
-    is_safe = moderation_service.is_safe(user_input.message)
-    # if not is_safe:
-    #      return StreamingResponse(event_stream(), media_type="application/json")
-    
-    user_name = get_user_name(user_id)
-    if user_name is None:
-        history = append_message_to_history(user_id, "user", user_input.message)
-    else:
-        history = append_message_to_history(user_id, user_name, user_input.message)
-        
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
     ocean_service = OceanAnalysisService(user_id)
     slang_service = SlangExtractionService(user_id)
+    memory_service = MemoryExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
-    memory_service = MemoryExtractionService(user_id)
+    
+    
+    # Moderation, name lookup, and history updates
+    is_safe = moderation_service.is_safe(user_input)
+    # if not is_safe:
+    #      async def error_stream():
+    #         yield json.dumps({"error": "FLAGGED_CONTENT"}) + "\n"
+    #      return error_stream
+    
+
+    # Check if the user has enough credits.
+    credits = profile_repo.get_user_credit(user_id)
+    if credits is None or credits < 1:
+        async def error_stream():
+            yield json.dumps({"error": "NO_CREDITS"}) + "\n"
+        return error_stream
+
+
+    user_name = profile_repo.get_user_name(user_id)
+    if user_name is None:
+        history = append_message_to_history(user_id, "user", user_input)
+    else:
+        history = append_message_to_history(user_id, user_name, user_input)
+        
+    print(f"User Name: {user_name}")
     
 
     mbti_type = mbti_service.get_mbti_type()
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
     ocean_traits = ocean_service.get_personality_traits()
-    slang_result = slang_service.retrieve_similar_slang(user_input.message)
+    slang_result = slang_service.retrieve_similar_slang(user_input)
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
     #relational_context = get_connected_memories(user_id, ##############) <-- source id
+    
     
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
@@ -354,7 +319,7 @@ async def convo_lead(user_input: UserInput, summarize: int = 10, extract: bool =
     if intent.confidence_score < 0.85:
         intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
     else:
-        similar_memories = memory_service.vector_search(user_input.message, limit=1)
+        similar_memories = memory_service.vector_search(user_input, limit=1)
         memory_string = similar_memories[0]['knowledge_text']
         if similar_memories and len(similar_memories) > 0:
             
@@ -369,7 +334,7 @@ async def convo_lead(user_input: UserInput, summarize: int = 10, extract: bool =
             
             for memory in relational_context:
                 print(f"{memory}")            
-            relational_context_string += format_context_block(relational_context) + "\n"
+            # TODO: relational_context_string += format_context_block(relational_context) + "\n"
 
                 
             print(f"\n----------------------------------------\n")
@@ -413,6 +378,8 @@ Relational Context:
 """
 
     print(f"Instructions : {instructions}")
+
+#region
 # that leads the conversation with the user to get to know them better.
 # Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
@@ -421,7 +388,7 @@ Relational Context:
 # USER CONTEXT:
 # - User ID: {user_id}
 # - Name: {user_name} (IMPORTANT: Ask for the user's name if it is not provided. Once received, update it using "update_user_name" tool)
-# - Current Message: {user_input.message}
+# - Current Message: {user_input}
 
 
 # PERSONALITY INSIGHTS:
@@ -538,7 +505,8 @@ Relational Context:
 # ASK ONLY ONE QUESTION AT A TIME AND ONLY ASK a question if it enhances the conversation.
 
 # Remember: Your goal is to create a natural, engaging meaningful conversation that helps understand the user's personality without explicitly analyzing it. Focus on building rapport and trust while gathering insights organically through the conversation flow."""
-
+#endregion
+ 
     # Initialize the planner agent and build the main agent with tools.
     
     set_tracing_disabled(True)
@@ -581,7 +549,7 @@ Relational Context:
     
     try:           
         # Streaming: run the agent in streaming mode
-        response : RunResultStreaming = Runner.run_streamed(starting_agent=convo_lead_agent, input=user_input.message)
+        response : RunResultStreaming = Runner.run_streamed(starting_agent=convo_lead_agent, input=user_input)
 
         async def event_stream():            
             full_output = ""
@@ -631,16 +599,16 @@ Relational Context:
             # Process the history and costs in the background
             asyncio.create_task(process_history(user_id, history, summarize))
             
-        return StreamingResponse(event_stream(), media_type="application/json")
+        return event_stream
     
     except Exception as e:
-        logging.error(f"Error processing convo lead: {e}")
+        logging.error(f"Error processing chat orchestration: {e}")
         # You can return an error response here; adjust based on your error model.
         
         async def event_stream():
-            yield json.dumps({"error": "Internal Server Error"}) + "\n"
+            yield json.dumps({"error": "SERVER_ERROR"}) + "\n"
             
-        return StreamingResponse(event_stream(), media_type="application/json") 
+        return event_stream 
 
 
 async def process_history(user_id: str, history: list[Message], summarize: int = 10, extract: bool = True):
@@ -674,14 +642,12 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
 
 
 
-
-
-async def non_streaming_response(user_input: UserInput, summarize: int = 10, extract: bool = True, user=Depends(verify_token)) -> AIResponse:
+# NON STREAMING RESPONSE (just saving this here for now)
+async def non_streaming_response(user_id: str, user_input: str, summarize: int = 10, extract: bool = True) -> AIResponse:
     """
     Leads the conversation with the user. If stream is True, returns a StreamingResponse
     with the agent's output as it arrives. Otherwise, waits for the full response and returns it.
     """
-    user_id = user["id"]
     
     
     # Check if the user has enough credits.
@@ -695,7 +661,7 @@ async def non_streaming_response(user_input: UserInput, summarize: int = 10, ext
     # if not is_safe:
     #     return AIResponse(response="", error=ErrorResponse(error=True, message="FLAGGED_CONTENT"))
     
-    user_name = get_user_name(user_id)
+    user_name = get_users_name(user_id)
     if user_name is None:
         history = append_message_to_history(user_id, "user", user_input.message)
     else:
@@ -982,70 +948,3 @@ Relational Context:
         # You can return an error response here; adjust based on your error model.
         return {"error": "Internal Server Error"}
 
-
-@router.post("/stream-response")
-async def stream_response(user_input: UserInput):
-    """
-    Streams the response from the agent to the user.
-    """
-    message = user_input.message
-
-    agent = Agent(
-        name="Joker",
-        instructions="You are a joker.",
-        model="gpt-4o-mini",
-    )
-    
-    result = Runner.run_streamed(
-        agent,
-        input="tell me a sotry of 5 sentences",
-    )
-
-    async def event_stream():
-        full_output = ""
-
-        async for event in result.stream_events():
-            if event.type == "raw_response_event" and hasattr(event.data, "delta"):
-                chunk = event.data.delta
-                full_output += chunk
-                # print(chunk, end="", flush=True)
-                yield json.dumps({ "delta": chunk }) + "\n"
-                await asyncio.sleep(0.1)  # Optional: pacing
-            elif event.type == "run_item_stream_event":
-                if event.item.type == "message_output_item":
-                    for chunk in event.item.raw_item.content:
-                        if hasattr(chunk, "text"):
-                            # print(chunk.text)
-                            yield chunk.text
-        
-
-    return StreamingResponse(event_stream(), media_type="text/plain")
-        
-
-
-def format_context_block(memories: List[Dict]) -> str:
-    """
-    Takes simplified memory dicts and formats them into a human-readable string block for prompt injection.
-    """
-    if not memories:
-        return "None available."
-
-    lines = []
-    for mem in memories:
-        if isinstance(mem, dict):
-            date = mem.get("date", "Unknown Date")
-            text = mem.get("knowledge_text", "[No text]")
-            lines.append(f"- ({date}) {text}")
-        else:
-            # If somehow a non-dict sneaks in, just log it and skip
-            print(f"⚠️ Skipped non-dict memory item: {mem}")
-
-    return "\n".join(lines)
-
-
-@function_tool
-def clear_history(user_id: str):
-    """
-    Clears the history for the user.
-    """
-    return clear_conversation_history(user_id)

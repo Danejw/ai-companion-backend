@@ -39,4 +39,4 @@ async def text_to_speech(text : str, instructions: str = "", voice: Voices = Voi
                 yield chunk
                 await asyncio.sleep(0)  # Yield control to event loop
 
-        return StreamingResponse(audio_stream(), media_type="audio/mp3")
+        return 
