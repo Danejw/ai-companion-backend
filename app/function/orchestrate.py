@@ -22,7 +22,7 @@ from app.supabase.knowledge_edges import get_connected_memories
 from app.supabase.profiles import ProfileRepository
 from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
 from app.utils.moderation import ModerationService
-from fastapi import File, UploadFile
+from fastapi import File, HTTPException, UploadFile
 from pydantic import BaseModel
 import asyncio
 import logging
@@ -229,28 +229,32 @@ def clear_history(user_id: str):
 # Voice in Voice Out
 async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio: UploadFile = File(...), summarize: int = 10, extract: bool = True):
     
+    # check user credits
+    
     transcript = await speech_to_text(audio)
     
-    print(f"Transcript: {transcript}")
-    
-    event_stream = await chat_orchestration(transcript, user_id, summarize, extract)
-    
-    full_output = ""
-    async for chunk in event_stream:
+    if not transcript.strip():
+        return {'error': 'EMPTY_TRANSCRIPT'}
+      
+    stream = await chat_orchestration(user_id, transcript, summarize, extract)
+        
+    final_output = ""
+    async for event in stream():
         try:
-            data = json.loads(chunk.strip())
-            if "delta" in data:
-                full_output += data["delta"]
-        except Exception as e:
-            print(f"Failed to parse stream chunk: {chunk}, error: {e}")
+            event_data = json.loads(event.strip())
+            if "delta" in event_data:
+                final_output += event_data["delta"]
+            else:
+                print("Other event received:", event_data)
+        except json.JSONDecodeError as e:
+            logging.error(f"Failed to parse event: {event}, Error: {e}")
+            
+    if not final_output:
+        return {'error': 'EMPTY_OUTPUT'}
+            
+    audio_stream = text_to_speech(final_output, voice)
 
-    print(f"Full AI Response: {full_output}")
-    
-    audio_stream = text_to_speech(full_output, voice)
-    
-    StreamingResponse(audio_stream, media_type="audio/mp3")
-
-    return audio_stream
+    return audio_stream, final_output
 
 
 
@@ -258,12 +262,12 @@ async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio:
 async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):
     
     # Initialize analysis services and retrieve context info
-    mbti_service = MBTIAnalysisService(user_id)
-    ocean_service = OceanAnalysisService(user_id)
-    slang_service = SlangExtractionService(user_id)
-    memory_service = MemoryExtractionService(user_id)
-    intent_service = IntentClassificationService(user_id)
-    tpb_service = TheoryPlannedBehaviorService(user_id)
+    # mbti_service = MBTIAnalysisService(user_id)
+    # ocean_service = OceanAnalysisService(user_id)
+    # slang_service = SlangExtractionService(user_id)
+    # memory_service = MemoryExtractionService(user_id)
+    # intent_service = IntentClassificationService(user_id)
+    # tpb_service = TheoryPlannedBehaviorService(user_id)
     
     
     # Moderation, name lookup, and history updates
@@ -275,78 +279,78 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     
 
     # Check if the user has enough credits.
-    credits = profile_repo.get_user_credit(user_id)
-    if credits is None or credits < 1:
-        async def error_stream():
-            yield json.dumps({"error": "NO_CREDITS"}) + "\n"
-        return error_stream
+    # credits = profile_repo.get_user_credit(user_id)
+    # if credits is None or credits < 1:
+    #     async def error_stream():
+    #         yield json.dumps({"error": "NO_CREDITS"}) + "\n"
+    #     return error_stream
 
 
-    user_name = profile_repo.get_user_name(user_id)
-    if user_name is None:
-        history = append_message_to_history(user_id, "user", user_input)
-    else:
-        history = append_message_to_history(user_id, user_name, user_input)
+    # user_name = profile_repo.get_user_name(user_id)
+    # if user_name is None:
+    #     history = append_message_to_history(user_id, "user", user_input)
+    # else:
+    #     history = append_message_to_history(user_id, user_name, user_input)
         
-    print(f"User Name: {user_name}")
+    # print(f"User Name: {user_name}")
     
 
-    mbti_type = mbti_service.get_mbti_type()
-    style_prompt = mbti_service.generate_style_prompt(mbti_type)
-    ocean_traits = ocean_service.get_personality_traits()
-    slang_result = slang_service.retrieve_similar_slang(user_input)
-    history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
+    # mbti_type = mbti_service.get_mbti_type()
+    # style_prompt = mbti_service.generate_style_prompt(mbti_type)
+    # ocean_traits = ocean_service.get_personality_traits()
+    # slang_result = slang_service.retrieve_similar_slang(user_input)
+    # history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
     #relational_context = get_connected_memories(user_id, ##############) <-- source id
     
     
     # Intent classification
-    intent = await intent_service.classify_intent(history_string)
+    # intent = await intent_service.classify_intent(history_string)
  
-    print(f"\n--------- Intent Classifaction ---------\n")
-    print(f"Intent: {intent.intent_label}")
-    print(f"Confidence Score: {intent.confidence_score}")
-    print(f"Clarifying Question: {intent.clarifying_question}")
-    print(f"Emotion: {intent.emotion}")
-    print(f"Memory Trigger: {intent.memory_trigger}")
-    print(f"Related Edges: {intent.related_edges}")
-    print(f"Reasoning: {intent.reasoning}")
-    print(f"\n----------------------------------------\n")
+    # print(f"\n--------- Intent Classifaction ---------\n")
+    # print(f"Intent: {intent.intent_label}")
+    # print(f"Confidence Score: {intent.confidence_score}")
+    # print(f"Clarifying Question: {intent.clarifying_question}")
+    # print(f"Emotion: {intent.emotion}")
+    # print(f"Memory Trigger: {intent.memory_trigger}")
+    # print(f"Related Edges: {intent.related_edges}")
+    # print(f"Reasoning: {intent.reasoning}")
+    # print(f"\n----------------------------------------\n")
 
-    memory_string = ""
-    relational_context_string = ""
+    # memory_string = ""
+    # relational_context_string = ""
    
-    if intent.confidence_score < 0.85:
-        intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
-    else:
-        similar_memories = memory_service.vector_search(user_input, limit=1)
-        memory_string = similar_memories[0]['knowledge_text']
-        if similar_memories and len(similar_memories) > 0:
+    # if intent.confidence_score < 0.85:
+    #     intent = ("Unconfident in the intent of the user, a possible clarifying question: "+ intent.clarifying_question + " if used ask is it in the most natural way possible")
+    # else:
+    #     similar_memories = memory_service.vector_search(user_input, limit=1)
+    #     memory_string = similar_memories[0]['knowledge_text']
+    #     if similar_memories and len(similar_memories) > 0:
             
-            print(f"\n--------- Similar Memories ---------\n")
-            print(f"Id: {similar_memories[0]['id']}")
-            print(f"{memory_string}")
-            print(f"\n----------------------------------------\n")
+    #         print(f"\n--------- Similar Memories ---------\n")
+    #         print(f"Id: {similar_memories[0]['id']}")
+    #         print(f"{memory_string}")
+    #         print(f"\n----------------------------------------\n")
             
-            relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
+    #         relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
             
-            print(f"\n--------- Relational Context ---------\n")
+    #         print(f"\n--------- Relational Context ---------\n")
             
-            for memory in relational_context:
-                print(f"{memory}")            
-            # TODO: relational_context_string += format_context_block(relational_context) + "\n"
+    #         for memory in relational_context:
+    #             print(f"{memory}")            
+    #         # TODO: relational_context_string += format_context_block(relational_context) + "\n"
 
                 
-            print(f"\n----------------------------------------\n")
+    #         print(f"\n----------------------------------------\n")
                 
-        else:
-            print("No similar memories found")
+    #     else:
+    #         print("No similar memories found")
            
         
-    # Behavior classification
-    tpb = await tpb_service.classify_behavior(history_string)
-    if tpb.confidence_score < 0.85:
-        tpb = "Unconfident in the behavior analysis of the user"
+    # # Behavior classification
+    # tpb = await tpb_service.classify_behavior(history_string)
+    # if tpb.confidence_score < 0.85:
+    #     tpb = "Unconfident in the behavior analysis of the user"
 
     agent_name = "Noelle"
     instructions = f"""
@@ -366,24 +370,24 @@ IMPORTANT RULE:
 - Avoid repeating similar reflective tones across multiple turns. Vary rhythm and language style to feel more like a dynamic human conversation.
 
 
-Use this with your response to the user (do not repeat the same information):
-Similar Memories:
-{memory_string}
 
-Relational Context:
-{relational_context_string}
-
-# CONVERSATION HISTORY:
-# {history_string}
 """
-
-    print(f"Instructions : {instructions}")
 
 #region
 # that leads the conversation with the user to get to know them better.
 # Your goal is to build a meaningful connection with the user while naturally gathering insights about their personality.
 
 # Your name is {agent_name} who is a conversationalist
+
+# Use this with your response to the user (do not repeat the same information):
+# Similar Memories:
+# {memory_string}
+
+# Relational Context:
+# {relational_context_string}
+
+# CONVERSATION HISTORY:
+# {history_string}
     
 # USER CONTEXT:
 # - User ID: {user_id}
@@ -523,41 +527,39 @@ Relational Context:
     
     memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
 
-    
     convo_lead_agent = Agent(
         name=agent_name,
         handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
         instructions=instructions,
-        model="gpt-4o-mini", # "o3-mini"
-        tools=[get_users_name, update_user_name,
-               get_user_birthdate, update_user_birthdate,
-               get_user_location, update_user_location,
-               get_user_gender, update_user_gender,
-               clear_history,
-               #retrieve_personalized_info_about_user,
-               search_agent.as_tool(
-                   tool_name="web_search",
-                   tool_description="Search the internet for the user's answer."
-               ),
-               memory_agents.agent.as_tool(
-                   tool_name="memory_search",
-                   tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
-               )
-        ]
+        model="gpt-4o-mini" # "o3-mini"
+        # tools=[get_users_name, update_user_name,
+        #        get_user_birthdate, update_user_birthdate,
+        #        get_user_location, update_user_location,
+        #        get_user_gender, update_user_gender,
+        #        clear_history,
+        #        #retrieve_personalized_info_about_user,
+        #        search_agent.as_tool(
+        #            tool_name="web_search",
+        #            tool_description="Search the internet for the user's answer."
+        #        ),
+        #        memory_agents.agent.as_tool(
+        #            tool_name="memory_search",
+        #            tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
+        #        )
+        # ]
     )
     
     
-    try:           
+    
+    try:       
+        print(f"User Input: {user_input}")    
         # Streaming: run the agent in streaming mode
-        response : RunResultStreaming = Runner.run_streamed(starting_agent=convo_lead_agent, input=user_input)
+        response : RunResultStreaming = Runner.run_streamed(convo_lead_agent, input=user_input)
 
         async def event_stream():            
             full_output = ""
             try:
-                async for event in response.stream_events():           
-                    
-                    # print(f"Raw Event: {event}")
-                       
+                async for event in response.stream_events():                                  
                     if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
                         chunk = event.data.delta
                         full_output += chunk
@@ -569,10 +571,7 @@ Relational Context:
                             yield  json.dumps({"tool_call_output": event.item.output}) + "\n"
                     elif event.type == "agent_updated_stream_event":
                         yield json.dumps({"agent_updated": f"{event.new_agent.name}"}) + "\n"
-                        
-                print(f"Full Output: {full_output}")
-                        
-                        
+                                                
                         
             except ValueError as e:
                 # This handles the specific context variable error
@@ -582,6 +581,7 @@ Relational Context:
                     try:
                         if hasattr(response, "_run_result") and response._run_result and hasattr(response._run_result, "final_output"):
                             final = response._run_result.final_output
+                            print(f"Final: {final}")
                             # If we have a partial output already, only yield what's missing
                             if final and final != full_output:
                                 remaining = final[len(full_output):]
@@ -597,7 +597,7 @@ Relational Context:
             history = append_message_to_history(user_id, convo_lead_agent.name, full_output)
 
             # Process the history and costs in the background
-            asyncio.create_task(process_history(user_id, history, summarize))
+            asyncio.create_task(process_history(user_id, history, summarize, extract))
             
         return event_stream
     
@@ -605,10 +605,10 @@ Relational Context:
         logging.error(f"Error processing chat orchestration: {e}")
         # You can return an error response here; adjust based on your error model.
         
-        async def event_stream():
+        async def fallback_stream():
             yield json.dumps({"error": "SERVER_ERROR"}) + "\n"
             
-        return event_stream 
+        return fallback_stream
 
 
 async def process_history(user_id: str, history: list[Message], summarize: int = 10, extract: bool = True):
