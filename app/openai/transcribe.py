@@ -31,6 +31,11 @@ async def speech_to_text(file : UploadFile, model: str = "whisper-1") -> str:
     return transcript.text
 
 
+async def speech_to_text_from_bytes(audio_bytes: bytes, model: str = "whisper-1") -> str:
+    transcript = client.audio.transcriptions.create(model=model, file=audio_bytes)
+    return transcript.text
+
+
 async def text_to_speech(text : str, instructions: str = "", voice: Voices = Voices.ALLOY):
     async with openai.audio.speech.with_streaming_response.create(
         model="gpt-4o-mini-tts",
