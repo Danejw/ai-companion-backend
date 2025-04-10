@@ -1,14 +1,22 @@
 import os
 import requests
-from fastapi import HTTPException, Security, Depends
+from fastapi import HTTPException, Security, WebSocket, WebSocketException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
+from jose import jwt, JWTError
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1/user"
 
+# HTTP
 security = HTTPBearer()
+
+# Websocket
+SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET") # match whatever you use for generating tokens
+ALGORITHM = "HS256"  # or whatever you prefer
+
+
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
     """
@@ -36,3 +44,26 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     user_data = response.json()
     
     return user_data  # ✅ Return the user details
+
+
+async def verify_token_websocket(websocket: WebSocket):
+    token = websocket.query_params.get("token")
+    if not token:
+        # Policy violation: no token found
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience="authenticated")
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+
+        # If everything checks out, return the user_id
+        return user_id
+
+    except JWTError:
+        # Token is invalid or expired
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")

@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 import os
 from dotenv import load_dotenv
+from app.routes.websockets_routes import router as ws_router
 
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
@@ -9,6 +10,8 @@ from app.stripe.stripe_config import STRIPE_CONFIG
 
 
 app = FastAPI()
+app.include_router(ws_router)
+
 
 # CORS
 from fastapi.middleware.cors import CORSMiddleware
@@ -65,6 +68,7 @@ from app.routes.vector_routes import router as vector_router
 from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
 from app.routes.orchestration_route import router as orchestration_router
+from app.routes.websockets_routes import router as websockets_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -84,7 +88,7 @@ app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"]
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
 app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
-
+app.include_router(websockets_router, prefix="/ws", tags=["Websockets"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"

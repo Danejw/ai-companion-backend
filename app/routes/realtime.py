@@ -114,3 +114,5 @@ def json_validator(data) -> bool:
         return True
     except (json.JSONDecodeError, TypeError):
         return False
+
+
