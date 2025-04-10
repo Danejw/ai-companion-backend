@@ -22,7 +22,7 @@ if ENV == "development":
     
     # Configure logging at the start of the file
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.ERROR,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
 else:
@@ -53,7 +53,6 @@ from app.routes.ocean import router as ocean_router
 from app.routes.knowledge import router as knowledge_router
 from app.routes.knowledge_edges_route import router as knowledge_edges_router
 from app.routes.memory_extraction_routes import router as memory_extraction_router
-from app.routes.orchestration import router as orchestration_router
 from app.stripe.subscription import router as stripe_router
 from app.routes.slang import router as slang_router
 from app.stripe.subscription import router as stripe_router
@@ -65,7 +64,7 @@ from app.routes.conversation_routes import router as conversation_router
 from app.routes.vector_routes import router as vector_router
 from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
-
+from app.routes.orchestration_route import router as orchestration_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -73,7 +72,6 @@ app.include_router(mbti_router, prefix="/mbti", tags=["MBTI"])
 app.include_router(ocean_router, prefix="/ocean", tags=["OCEAN"])
 app.include_router(knowledge_router, prefix="/knowledge", tags=["Knowledge"])
 app.include_router(knowledge_edges_router, prefix="/knowledge_edges", tags=["Knowledge Edges"])
-app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
 app.include_router(stripe_router, prefix="/app/stripe", tags=["Stripe"])
 app.include_router(slang_router, prefix="/slang", tags=["Slang"])
 app.include_router(moderation_router, prefix="/moderation", tags=["Moderation"])
@@ -85,6 +83,7 @@ app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
+app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
 
 
 # Force HTTPS connections in production

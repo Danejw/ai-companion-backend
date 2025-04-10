@@ -26,6 +26,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     logging.info(f"🔍 Supabase Verification Status: {response.status_code}, Response: {response.json()}")
 
     if response.status_code != 200:
+        return {"error": "NOT_AUTHENTICATED"}
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     user_data = response.json()
