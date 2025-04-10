@@ -30,7 +30,10 @@ class KnowledgeEdge(BaseModel):
     relation_type: Optional[List[str]] = "semantic_similarity"
     notes: Optional[str] = None
     created_at: Optional[str] = None  # Will default in DB
-    
+
+class SimplifiedMemory(BaseModel):
+    date: str
+    text: str
     
 """
 RELATION TYPE EXPLANATION:
@@ -275,9 +278,7 @@ def get_connected_memories(user_id: UUID, source_id: UUID, relation_type: Option
     return simplified_response
 
 
-class SimplifiedMemory(BaseModel):
-    date: str
-    text: str
+
 
 def simplify_related_memories(memories: List[Dict]) -> List[SimplifiedMemory]:
     simplified = []
@@ -302,3 +303,12 @@ def simplify_related_memories(memories: List[Dict]) -> List[SimplifiedMemory]:
 
     return simplified
 
+
+def pretty_print_memories(memories: list[SimplifiedMemory]) -> str:
+    formatted_memories = ""
+    for memory in memories:
+        formatted_memories += f""""
+        {memory.date}
+        {memory.text}
+        """
+    return formatted_memories

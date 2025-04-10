@@ -14,11 +14,33 @@ class SlangScore(BaseModel):
 class SlangMetadata(BaseModel):
     score: SlangScore
     topics: List[str]   # Tags or categories for the slang, if applicable
-    timestamp: str
+    timestamp: datetime
 
 class SlangResult(BaseModel):
     slang_text: str     # The extracted slang or informal expression
     metadata: SlangMetadata
+
+
+class SlangRetrieval(BaseModel):
+    id: str
+    slang_text: str
+    metadata: SlangMetadata
+    similarity: float
+    
+    # Custom model configuration to handle the metadata JSON string
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }
+
+    @classmethod
+    def from_raw_data(cls, data: dict):
+        # Convert the metadata string to dict if it's a string
+        if isinstance(data.get('metadata'), str):
+            import json
+            data = dict(data)  # Create a copy to avoid modifying the original
+            data['metadata'] = json.loads(data['metadata'])
+        return cls(**data)
 
 # Instructions for the agent
 instructions = (
@@ -67,13 +89,18 @@ class SlangExtractionService:
         """
         store_user_slang(self.user_id, slang.slang_text, slang.metadata.dict())
 
-    def retrieve_similar_slang(self, query: str, top_k: int = 2):
+    def retrieve_similar_slang(self, query: str, top_k: int = 2) -> List[SlangRetrieval]:
         """
         Retrieve stored slang that is similar to the given query.
         """
-        return find_similar_slang(self.user_id, query, top_k)
+        slangs = find_similar_slang(self.user_id, query, top_k)
+        return [SlangRetrieval.from_raw_data(slang) for slang in slangs]
 
     # TODO: Add a pretty print function for the slang results
-    def pretty_print_slang_result(self, slang: SlangResult) -> str:
-        return 
+    def pretty_print_slang_result(self, slangs: List[SlangRetrieval]) -> str:
+        formatted_slangs = ""
+        for slang in slangs:
+            formatted_slangs += f"""
+            Slang: {slang.slang_text} - Topics: {slang.metadata.topics} - Similarity: {slang.similarity}"""
+        return formatted_slangs
 

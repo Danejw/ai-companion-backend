@@ -18,7 +18,7 @@ from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
 from app.supabase.conversation_history import Message, append_message_to_history, clear_conversation_history, get_or_create_conversation_history, replace_conversation_history_with_summary
-from app.supabase.knowledge_edges import SimplifiedMemory, get_connected_memories
+from app.supabase.knowledge_edges import SimplifiedMemory, get_connected_memories, pretty_print_memories
 from app.supabase.profiles import ProfileRepository
 from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
 from app.utils.moderation import ModerationService
@@ -259,8 +259,7 @@ async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio:
 
 
 # Text in Text Out
-async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):
-    
+async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):    
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
     ocean_service = OceanAnalysisService(user_id)
@@ -268,6 +267,8 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     memory_service = MemoryExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
+    
+
     
     
     # Moderation, name lookup, and history updates
@@ -296,7 +297,9 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     mbti_type = mbti_service.get_mbti_type()
     style_prompt = mbti_service.generate_style_prompt(mbti_type)
     ocean_traits = ocean_service.get_pretty_print_ocean_format()
-    slang_result = slang_service.retrieve_similar_slang(user_input)
+    
+    slang_result_pretty_print = slang_service.pretty_print_slang_result(slang_service.retrieve_similar_slang(user_input))
+
     history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history])
     #similar_memories = memory_service.vector_search(history_string)
     #relational_context = get_connected_memories(user_id, ##############) <-- source id
@@ -337,7 +340,7 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
                 
                 print(f"\n--------- Relational Context ---------\n")
                           
-                relational_context_string = format_context_block(relational_context)
+                relational_context_string = pretty_print_memories(relational_context)
                 print(relational_context_string)
 
                     
@@ -371,14 +374,14 @@ IMPORTANT RULE:
 - Avoid repeating similar reflective tones across multiple turns. Vary rhythm and language style to feel more like a dynamic human conversation.
 
 Use this with your response to the user (do not repeat the same information):
-Similar Memories:
-{memory_string}
+    Similar Memories:
+    {memory_string}
 
-Relational Context:
-{relational_context_string}
+    Relational Context:
+    {relational_context_string}
 
 CONVERSATION HISTORY:
-{history_string}
+    {history_string}
     
 USER CONTEXT:
 - User ID: {user_id}
@@ -393,9 +396,9 @@ PERSONALITY INSIGHTS:
 
 
 USER BEHAVIOR ANALYSIS:
-- Intent: {intent}
+- Intent: {intent.reasoning}
 - Behavior Pattern: {tpb}
-- Language Style: {slang_result}
+- Language Style: {slang_result_pretty_print}
 
 
 """
@@ -638,12 +641,3 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
 
 
-def format_context_block(context: list[SimplifiedMemory]) -> str:
-    formatted_context = ""
-    for memory in context:
-        formatted_context += f""""
-        {memory.date}
-        {memory.text}
-    
-        """
-    return formatted_context
