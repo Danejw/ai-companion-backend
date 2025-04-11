@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.websockets.context.store import update_context
 from app.function.orchestrate import chat_orchestration
-from app.websockets.handlers.text_handlers import handle_audio, handle_orchestration, handle_text
+from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_orchestration, handle_text, handle_time
 from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, UIActionMessage, OrchestrateMessage
 from pydantic import TypeAdapter
 
@@ -49,11 +49,11 @@ custom_tts_settings = TTSModelSettings(
 
 
 agent = Agent(
-            name="Hawaii Tutor Agent",
-            handoff_description="An agent teaches the user about Hawaiian culture, history, and language.",
-            instructions=instructions,
-            model="gpt-4o-mini",         
-        )
+        name="Hawaii Tutor Agent",
+        handoff_description="An agent teaches the user about Hawaiian culture, history, and language.",
+        instructions=instructions,
+        model="gpt-4o-mini",         
+    )
 
 
 @router.websocket("/main")
@@ -74,7 +74,6 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                     "details": ve.errors()
                 })
                 continue
-
             match message:          
                 case TextMessage():
                     await handle_text(agent, websocket, message, user_id)
@@ -84,29 +83,20 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
 
                 case ImageMessage():
                     update_context(user_id, "image", {"format": message.format})
-                    await websocket.send_json({"type": "image_ack", "status": "ok"})
+                    await websocket.send_json({"type": "image_action", "status": "ok"})
 
                 case GPSMessage():
-                    update_context(user_id, "location", {
-                        "latitude": message.latitude,
-                        "longitude": message.longitude,
-                        "accuracy": message.accuracy
-                    })
-                    await websocket.send_json({"type": "location_ack", "status": "ok"})
-
+                    await handle_gps(websocket, message, user_id)
+                    
                 case TimeMessage():
-                    update_context(user_id, "time", {
-                        "timestamp": message.timestamp,
-                        "timezone": message.timezone
-                    })
-                    await websocket.send_json({"type": "time_ack", "status": "ok"})
+                    await handle_time(websocket, message, user_id)
 
                 case UIActionMessage():
                     print(f"Received UI action: {message.action} on {message.target}")
-                    await websocket.send_json({"type": "ui_ack", "status": "ok"})
+                    await websocket.send_json({"type": "ui_action", "status": "ok"})
+                
                 case OrchestrateMessage():
-                    await handle_orchestration(websocket, message, user_id)
-
+                    await handle_orchestration(agent, websocket, message, user_id)
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for user {user_id}")
 

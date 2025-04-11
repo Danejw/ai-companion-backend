@@ -24,11 +24,19 @@ class ImageMessage(BaseModel):
     data: str  # base64 encoded image
 
 # LOCATION (GPS)
-class GPSMessage(BaseModel):
-    type: Literal["gps"]
+class GPSCoords(BaseModel):
     latitude: float
     longitude: float
-    accuracy: Optional[float]
+    accuracy: Optional[float] = None
+    altitude: Optional[float] = None
+    altitudeAccuracy: Optional[float] = None
+    heading: Optional[float] = None
+    speed: Optional[float] = None
+
+class GPSMessage(BaseModel):
+    type: Literal["gps"]
+    coords: GPSCoords
+    timestamp: Optional[float] = None
 
 # TIME
 class TimeMessage(BaseModel):
