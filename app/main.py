@@ -2,7 +2,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 import os
 from dotenv import load_dotenv
-from app.routes.websockets_routes import router as ws_router
+from app.websockets.routes.websockets_routes import router as ws_router
 
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
@@ -68,7 +68,7 @@ from app.routes.vector_routes import router as vector_router
 from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
 from app.routes.orchestration_route import router as orchestration_router
-from app.routes.websockets_routes import router as websockets_router
+from app.websockets.routes.websockets_routes import router as websockets_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)

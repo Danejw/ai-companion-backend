@@ -257,7 +257,6 @@ async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio:
     return audio_stream, final_output
 
 
-
 # Text in Text Out
 async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10, extract: bool = True):    
     # Initialize analysis services and retrieve context info
