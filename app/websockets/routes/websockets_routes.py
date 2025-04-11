@@ -77,10 +77,10 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
 
             match message:          
                 case TextMessage():
-                    await handle_text(websocket, message, user_id)
+                    await handle_text(agent, websocket, message, user_id)
                 
                 case AudioMessage():
-                    await handle_audio(websocket, message, user_id)
+                    await handle_audio(agent, websocket, message, user_id)
 
                 case ImageMessage():
                     update_context(user_id, "image", {"format": message.format})
@@ -217,3 +217,5 @@ async def websocket_voice(websocket: WebSocket, user_id: str = Depends(verify_to
 
     except WebSocketDisconnect:
         print("WebSocket disconnected")
+
+
