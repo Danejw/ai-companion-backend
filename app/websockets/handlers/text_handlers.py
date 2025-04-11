@@ -3,6 +3,7 @@ import base64
 import os
 from agents import Agent, RunResultStreaming, Runner
 from fastapi import WebSocket
+import httpx
 from openai import AsyncOpenAI
 from app.websockets.context.store import get_context, update_context
 from app.websockets.orchestrate_contextual import build_contextual_prompt
@@ -24,7 +25,7 @@ async def handle_audio(agent: Agent, websocket: WebSocket, message: AudioMessage
     await websocket.send_json({"type": "audio_action", "status": "ok"})
     # Transcribe audio using Whisper
     audio_bytes = base64.b64decode(message.audio)
-    user_transcript = await stt(audio_bytes, websocket)
+    user_transcript = await stt(audio_bytes)
 
     await websocket.send_json({"type": "user_transcript", "text": user_transcript})
     update_context(user_id, "last_message", user_transcript)
@@ -77,7 +78,7 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     
     print("Orchestrating: ", message.user_input)
     
-    system_prompt = build_contextual_prompt(user_id)
+    system_prompt = await build_contextual_prompt(user_id)
     
     print( "System prompt", system_prompt)
     
@@ -121,7 +122,7 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     await websocket.send_json({"type": "orchestration", "status": "done"})
     
     # send audio response
-    encoded_audio = await tts(final, "alloy", websocket)
+    encoded_audio = await tts(final, "alloy")
     await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
 
 
@@ -146,3 +147,6 @@ async def tts(text :str, voice :str) -> str:
     # # Stream audio data back to frontend as base64 chunks
     encoded_audio = base64.b64encode(audio_data).decode()
     return encoded_audio
+
+
+    

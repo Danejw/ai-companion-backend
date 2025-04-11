@@ -1,5 +1,6 @@
 # app/orchestration/orchestrate_contextual.py
 from app.supabase.profiles import ProfileRepository
+from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context
 from agents import Agent, Runner
 from dateutil import parser
@@ -13,7 +14,7 @@ agent = Agent(
 
 
 
-def build_contextual_prompt(user_id: str) -> str:
+async def build_contextual_prompt(user_id: str) -> str:
     
     profile_service = ProfileRepository()
     # Get the user's name
@@ -33,7 +34,8 @@ def build_contextual_prompt(user_id: str) -> str:
     location = context.get("gps")
     if location:
         # TODO: Get city from latitude and longitude
-        prompt_parts.append(f"The user is currently located at latitude {location['latitude']}, longitude {location['longitude']}")
+        location_name = await reverse_geocode(location['latitude'], location['longitude'])
+        prompt_parts.append(f"The user is currently located at {location_name}")
 
     time = context.get("time")
     if time:
