@@ -35,7 +35,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     logging.info(f"🔍 Supabase Verification Status: {response.status_code}, Response: {response.json()}")
 
     if response.status_code != 200:
-        error_detail = {"error": "NOT_AUTHENTICATED"}
+        error_detail = {"error": "UNAUTHENTICATED"}
         raise HTTPException(
             status_code=401,
             detail=error_detail
@@ -47,16 +47,24 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 
 
 async def verify_token_websocket(websocket: WebSocket):
+    await websocket.accept()
+    
     token = websocket.query_params.get("token")
     if not token:
         # Policy violation: no token found
+        
+        await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience="authenticated")
         user_id: str = payload.get("sub")
+        
+        await websocket.send_json({"type": "info", "text": "AUTHENTICATED"})
+        
         if user_id is None:
+            await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
 
@@ -65,5 +73,6 @@ async def verify_token_websocket(websocket: WebSocket):
 
     except JWTError:
         # Token is invalid or expired
+        await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
