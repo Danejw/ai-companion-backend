@@ -9,11 +9,10 @@ from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
 from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
-from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
+from app.supabase.conversation_history import append_message_to_history
 from app.supabase.knowledge_edges import get_connected_memories, pretty_print_memories
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
-from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context, update_context
 from agents import Agent, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
@@ -27,7 +26,18 @@ profile_repo = ProfileRepository()
 agent_name = "Noelle"
 
 initial_instructions = f"""
+Riff with the user to make the conversation more interesting and engaging. 
+Speak in a way that is natural and conversational.
 
+Use your memories and context to connect the dots and make the conversation more meaningful.
+Use your knowledge of the user to make the conversation more personalized.
+Use your slang to make the conversation more engaging.
+
+DO NOT MENTION THE MBTI OR OCEAN TRAITS IN YOUR RESPONSES.
+ONLY ASK QUESTIONS IF IT ADDS VALUE TO THE CONVERSATION AND ONLY ASK ONE QUESTION AT A TIME.
+DO NOT MENTION OPENAI IN YOUR RESPONSES.
+
+TAKE THE INITIATIVE TO USE YOUR TOOLS
 
 Function Tools:
    - Get the user's name using "get_users_name" tool
@@ -38,8 +48,8 @@ Function Tools:
    - if the user gives their location, automatically update the user's location using "update_user_location" tool
    - Get the user's gender using "get_user_gender" tool
    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
-   - Search the internet for the user's answer using the "search_agent" as a tool. it is smart enough to know the difference between a question and a statement.
-   - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
+   - Search the internet for the user's answer using the "search_agent" as a tool. It is smart so give it enough context to work with.
+   - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool. It is smart so give it enough context to work with.
    - Clear the conversation history using the "clear_history" tool
 
 """
@@ -50,7 +60,7 @@ search_agent = Agent(
         handoff_description="A search agent.",
         instructions=
             "Search the internet for the user's answer.",
-        model="o3-mini", #"gpt-4o",
+        model="gpt-4o-mini",#"o3-mini", #"gpt-4o",
         tools=[WebSearchTool()]
     )
 
@@ -239,12 +249,13 @@ async def orchestration_websocket( user_id: str, agent: Agent,   user_input: str
     ))
     
     noelle_agent.instructions = f"""
+Instructions:
+    {initial_instructions} 
+
 User Contextual Prompt:
     user_id: {user_id}
     {await build_contextual_prompt(user_id)} 
-    
-Instructions:
-    {initial_instructions} 
+
 
 Fun Slang you can use:
     {slang_result_pretty_print}

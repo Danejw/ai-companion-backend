@@ -19,6 +19,7 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 async def handle_text(agent: Agent, websocket: WebSocket, message: TextMessage, user_id: str):
     await websocket.send_json({"type": "text_action", "status": "ok"})
     update_context(user_id, "last_message", message.text)
+    update_context(user_id, "settings", message)
     # response = await Runner.run(agent, message.text)
     # await websocket.send_json({"type": "ai_response", "text": response.final_output})
     
@@ -26,6 +27,7 @@ async def handle_text(agent: Agent, websocket: WebSocket, message: TextMessage, 
 
 async def handle_audio(agent: Agent, websocket: WebSocket, message: AudioMessage, user_id: str):
     await websocket.send_json({"type": "audio_action", "status": "ok"})
+    update_context(user_id, "settings", message)
     # Transcribe audio using Whisper
     audio_bytes = base64.b64decode(message.audio)
     user_transcript = await stt(audio_bytes)
@@ -33,14 +35,6 @@ async def handle_audio(agent: Agent, websocket: WebSocket, message: AudioMessage
     await websocket.send_json({"type": "user_transcript", "text": user_transcript})
     update_context(user_id, "last_message", user_transcript)
     
-    # response = await Runner.run(agent, user_transcript)
-    
-    # await websocket.send_json({"type": "ai_transcript", "text": response.final_output})
-
-    voice = message.voice if message.voice else "alloy"
-    # await tts(response.final_output, voice, websocket)
-    
-    #print("Context: ", get_context(user_id))
 
 # TODO: handle everything below this
 async def handle_image(websocket: WebSocket, message: ImageMessage, user_id: str):
@@ -88,8 +82,11 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     agent.instructions = system_prompt
     
     user_input = get_context_key(user_id, "last_message")
+    settings = get_context_key(user_id, "settings")
+        
+    print("Settings: ", settings)
 
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket)
+    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket, extract=settings.extract, summarize=settings.summarize)
 
     async for event in result.stream_events():
         if event.type == "raw_response_event":
@@ -130,9 +127,12 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     # Process the history and costs in the background
     asyncio.create_task(process_history(user_id, history, summarize=10, extract=True))
     
-    # send audio response
-    encoded_audio = await tts(final, "alloy")
-    await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
+    
+    settings = get_context_key(user_id, "settings")
+    if settings.type == "audio":
+        # send audio response
+        encoded_audio = await tts(final, settings.voice)
+        await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
 
 
 # Helpers
