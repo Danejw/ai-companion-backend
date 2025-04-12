@@ -38,7 +38,7 @@ Function Tools:
    - if the user gives their location, automatically update the user's location using "update_user_location" tool
    - Get the user's gender using "get_user_gender" tool
    - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
-   - Search the internet for the user's answer using the "search_agent" as a tool
+   - Search the internet for the user's answer using the "search_agent" as a tool. it is smart enough to know the difference between a question and a statement.
    - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
    - Clear the conversation history using the "clear_history" tool
 
