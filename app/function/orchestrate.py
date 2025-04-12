@@ -1,12 +1,8 @@
-
-
-
-
-
 import json
 
 from fastapi.responses import StreamingResponse
 
+from app.function.supabase_tools import clear_history, create_user_feedback, get_user_birthdate, get_user_gender, get_user_location, get_users_name, retrieve_personalized_info_about_user, update_user_birthdate, update_user_gender, update_user_location, update_user_name
 from app.openai.transcribe import speech_to_text, text_to_speech
 from app.openai.voice import Voices
 from app.personal_agents import memory_agents
@@ -17,23 +13,21 @@ from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
 from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
-from app.supabase.conversation_history import Message, append_message_to_history, clear_conversation_history, get_or_create_conversation_history, replace_conversation_history_with_summary
-from app.supabase.knowledge_edges import SimplifiedMemory, get_connected_memories, pretty_print_memories
+from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
+from app.supabase.knowledge_edges import get_connected_memories, pretty_print_memories
 from app.supabase.profiles import ProfileRepository
-from app.supabase.user_feedback import UserFeedback, UserFeedbackRepository
+from app.supabase.user_feedback import UserFeedbackRepository
 from app.utils.moderation import ModerationService
 from fastapi import File, HTTPException, UploadFile
 from pydantic import BaseModel
 import asyncio
 import logging
-from agents import Agent, Runner, WebSearchTool, function_tool, set_tracing_disabled, RunResultStreaming, WebSearchTool
+from agents import Agent, Runner, WebSearchTool, RunResultStreaming, WebSearchTool
 from openai.types.responses import ResponseTextDeltaEvent
 from app.supabase.knowledge_edges import get_connected_memories
 
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
 from fastapi.responses import StreamingResponse
-
-
 
 
 class ErrorResponse(BaseModel):
@@ -51,178 +45,6 @@ profile_repo = ProfileRepository()
 moderation_service = ModerationService()
 user_feedback_repo = UserFeedbackRepository()
 
-
-
-
-# Tools
-#region Description
-@function_tool
-def get_users_name(user_id: str) -> str:
-    """
-    Retrieves the name of the user from the profile repository.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    
-    Returns:
-    - str: the name of the user
-    """ 
-    return profile_repo.get_user_name(user_id)
-
-
-@function_tool
-def get_user_birthdate(user_id: str) -> str:
-    """
-    Retrieves the birthdate of the user from the profile repository.
-
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-
-    Returns:
-    - datetime.date: the birthdate of the user
-    """
-    return profile_repo.get_user_birthdate(user_id)
-
-
-@function_tool
-def get_user_location(user_id: str) -> str:
-    """
-    Retrieves the location of the user from the profile repository.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    
-    Returns:
-    - str: the location of the user
-    """
-    return profile_repo.get_user_location(user_id)
-
-
-@function_tool
-def get_user_gender(user_id: str) -> str:
-    """
-    Retrieves the gender of the user from the profile repository.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    
-    Returns:
-    - str: the gender of the user
-    """
-    return profile_repo.get_user_gender(user_id)
-
-
-@function_tool
-def update_user_name(user_id: str, name: str) -> bool:
-    """
-    Updates the user's name in the profile repository.
-
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    - name (str): The new name to update for the user.
-
-    Returns:
-    - bool: True if the update was successful, False otherwise.
-    """ 
-    return profile_repo.update_user_name(user_id, name)
-
-
-@function_tool
-def update_user_birthdate(user_id: str, birthdate: str) -> bool:
-    """
-    Updates the user's birthdate in the profile repository.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    - birthdate (datetime.date): The new birthdate to update for the user.
-
-    Returns:
-    - bool: True if the update was successful, False otherwise.
-    """
-    return profile_repo.update_user_birthdate(user_id, birthdate)
-
-
-@function_tool
-def update_user_location(user_id: str, location: str) -> bool:
-    """
-    Updates the user's location in the profile repository.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    - location (str): The new location to update for the user.
-
-    Returns:
-    - bool: True if the update was successful, False otherwise.
-    """
-    return profile_repo.update_user_location(user_id, location)
-
-
-@function_tool
-def update_user_gender(user_id: str, gender: str) -> bool:
-    """
-    Updates the user's gender in the profile repository.    
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    - gender (str): The new gender to update for the user.
-
-    Returns:
-    - bool: True if the update was successful, False otherwise.
-    """
-    return profile_repo.update_user_gender(user_id, gender)
-
-
-@function_tool
-async def retrieve_personalized_info_about_user(user_id: str, query: str) -> str:
-    """
-    Retireve personalized information about the user for more personalized, deeper, and meaningful conversation.
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    
-    - query (str): The query to find addtional information about the user to personalize the conversation.
-
-    Returns:
-    - str: the addtional information about the user
-    """
-
-    knowledge_service = KnowledgeExtractionService(user_id)
-    try:
-        return await knowledge_service.retrieve_similar_knowledge(query)
-    except Exception as e:
-        logging.error(f"Error retrieving knowledge: {e}")
-        raise HTTPException(status_code=500, detail="Internal Server Error")
-
-
-@function_tool
-async def create_user_feedback(user_id: str, user_feedback: UserFeedback) -> str:
-    """
-    Creates user feedback and stores it in the database
-    
-    Parameters:
-    - user_id (str): The unique identifier of the user.
-    - user_feedback (UserFeedback): The user feedback to create.
-        class UserFeedback(BaseModel):
-            user_id: str   # The unique identifier of the user.
-            context: str  # The Summary of the conversation history leading up to the user's message.
-            feedback: str  # The feedback of the user.
-            sentiment: str  # The sentiment of the user feedback.
-
-    Returns:
-    - bool: True if the user feedback was created successfully, False otherwise.
-    """
-    user_feedback.user_id = user_id
-    return user_feedback_repo.create_user_feedback(user_feedback)
-
-
-@function_tool
-def clear_history(user_id: str):
-    """
-    Clears the history for the user.
-    """
-    return clear_conversation_history(user_id)
-
-#endregion
 
 
 
@@ -506,6 +328,7 @@ Response = "I'm here to help! What would you like to discuss or ask about?"
             get_user_gender, update_user_gender,
             clear_history,
             retrieve_personalized_info_about_user,
+            create_user_feedback,
             search_agent.as_tool(
                 tool_name="web_search",
                 tool_description="Search the internet for the user's answer."

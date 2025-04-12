@@ -7,9 +7,12 @@ from openai import AsyncOpenAI
 import base64
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
+from app.supabase.profiles import ProfileRepository
+from app.utils.moderation import ModerationService
 from app.websockets.context.store import update_context
 from app.function.orchestrate import chat_orchestration
 from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_orchestration, handle_text, handle_time
+from app.websockets.orchestrate_contextual import build_user_profile
 from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, UIActionMessage, OrchestrateMessage
 from pydantic import TypeAdapter
 
@@ -52,14 +55,32 @@ agent = Agent(
         name="Hawaii Tutor Agent",
         handoff_description="An agent teaches the user about Hawaiian culture, history, and language.",
         instructions=instructions,
-        model="gpt-4o-mini",         
+        model="gpt-4o-mini"         
     )
 
 
 @router.websocket("/main")
 async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_token_websocket)):
     await websocket.accept()
+
+    # Check credits send error back if 0
+    profile_service = ProfileRepository()
+    moderation_service = ModerationService()
+
+    credits = profile_service.get_user_credit(user_id)
+    if credits is None or credits < 1:
+        await websocket.send_json({"type": "error", "text": "NO_CREDITS"})
+        
+        #TODO: Send UI action with error message to open the credit top up modal
+        return
+    
+    # TODO: Moderation check per message input
+    
     print(f"WebSocket connected for user {user_id}")
+
+    # build user profile
+    await build_user_profile(user_id, websocket)
+
 
     try:
         while True:
