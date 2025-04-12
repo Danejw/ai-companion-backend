@@ -119,3 +119,10 @@ async def get_mbti_type(user=Depends(verify_token)):
     return {"mbti_type": mbti_type}
 
 
+@router.post("/reset-mbti")
+async def reset_mbti(user=Depends(verify_token)):
+    user_id = user["id"]
+    service = MBTIAnalysisService(user_id)
+    service.repository.reset_mbti(user_id)
+    return {"message": "MBTI data reset successfully"}
+

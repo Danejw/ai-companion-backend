@@ -8,7 +8,7 @@ from openai import AsyncOpenAI
 from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
 from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
-from app.websockets.context.store import get_context, update_context
+from app.websockets.context.store import get_context, get_context_key, update_context
 from app.websockets.orchestrate_contextual import build_contextual_prompt, orchestration_websocket
 from app.websockets.schemas.messages import OrchestrateMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage
 
@@ -86,9 +86,10 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     print( "System prompt", system_prompt)
     
     agent.instructions = system_prompt
+    
+    user_input = get_context_key(user_id, "last_message")
 
-
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=message.user_input, websocket=websocket)
+    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket)
 
     async for event in result.stream_events():
         if event.type == "raw_response_event":

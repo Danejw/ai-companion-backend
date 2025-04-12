@@ -9,6 +9,10 @@ store_lock = Lock()
 def get_context(user_id: str) -> Dict[str, Any]:
     with store_lock:
         return user_context_store.get(user_id, {})
+    
+def get_context_key(user_id: str, key: str) -> Any:
+    with store_lock:
+        return user_context_store.get(user_id, {}).get(key)
 
 def update_context(user_id: str, key: str, value: Any) -> None:
     with store_lock:
@@ -17,6 +21,11 @@ def update_context(user_id: str, key: str, value: Any) -> None:
 def delete_context(user_id: str) -> None:
     with store_lock:
         user_context_store.pop(user_id, None)
+        
+def delete_context_key(user_id: str, key: str) -> None:
+    with store_lock:
+        if user_id in user_context_store and key in user_context_store[user_id]:
+            del user_context_store(user_id, {})[key]
 
 def dump_context(user_id: str) -> Dict[str, Any]:
     with store_lock:
@@ -27,7 +36,3 @@ def replace_context(user_id: str, key: str, value: Any) -> None:
         if user_id in user_context_store:
             user_context_store(user_id, {})[key] = value
             
-def delete_context(user_id: str, key: str) -> None:
-    with store_lock:
-        if user_id in user_context_store and key in user_context_store[user_id]:
-            del user_context_store(user_id, {})[key]

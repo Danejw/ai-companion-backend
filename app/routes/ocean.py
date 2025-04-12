@@ -106,3 +106,10 @@ async def get_ocean_pretty_print(user : str):
     return service.get_pretty_print_ocean_format()
 
 
+@router.post("/reset-ocean")
+async def reset_ocean(user=Depends(verify_token)):
+    user_id = user["id"]
+    service = OceanAnalysisService(user_id)
+    service.repository.reset_ocean(user_id)
+    return {"message": "OCEAN data reset successfully"}
+

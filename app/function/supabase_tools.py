@@ -81,6 +81,7 @@ def update_user_name(user_id: str, name: str) -> bool:
     Returns:
     - bool: True if the update was successful, False otherwise.
     """ 
+    print(f"Updating user name to: {user_id} {name}")
     return profile_repo.update_user_name(user_id, name)
 
 

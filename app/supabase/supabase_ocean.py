@@ -73,3 +73,10 @@ class OceanRepository:
                 logging.info(f"Inserted new OCEAN record for user_id: {user_id}")
         except Exception as e:
             logging.error(f"Error upserting OCEAN data for user {user_id}: {e}")
+            
+    def reset_ocean(self, user_id: str) -> None:
+        """
+        Resets the OCEAN record for a specific user.
+        """
+        self.supabase.table(self.table_name).delete().eq("user_id", user_id).execute()
+        logging.info(f"Reset OCEAN record for user_id: {user_id}")

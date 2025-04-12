@@ -27,6 +27,21 @@ profile_repo = ProfileRepository()
 agent_name = "Noelle"
 
 initial_instructions = f"""
+
+
+Function Tools:
+   - Get the user's name using "get_users_name" tool
+   - if the user gives their name, automatically update the user's name using "update_user_name" tool
+   - Get the user's birthdate using "get_user_birthdate" tool
+   - if the user gives their birthdate, automatically update the user's birthdate using "update_user_birthdate" tool
+   - Get the user's location using "get_user_location" tool
+   - if the user gives their location, automatically update the user's location using "update_user_location" tool
+   - Get the user's gender using "get_user_gender" tool
+   - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
+   - Search the internet for the user's answer using the "search_agent" as a tool
+   - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool
+   - Clear the conversation history using the "clear_history" tool
+
 """
 
 
@@ -67,44 +82,7 @@ noelle_agent = Agent(
     
 
 
-async def build_contextual_prompt(user_id: str) -> str:
-    
-    profile_service = ProfileRepository()
-    # Get the user's name
-    user_name = profile_service.get_user_name(user_id)
-    
-    if user_name:
-        prompt_parts = [f"You are Noelle, an AI companion for {user_name}."]
-    else:
-        prompt_parts = ["You are Noelle, an AI companion for the user."]
-     
-     
-    context = get_context(user_id)
-    
-    print( "Context", context)
-    
-    
-    location = context.get("gps")
-    if location:
-        # TODO: Get city from latitude and longitude
-        location_name = await reverse_geocode(location['latitude'], location['longitude'])
-        prompt_parts.append(f"The user is currently located at {location_name}")
 
-    time = context.get("time")
-    if time:
-        timestamp = parser.parse(time.get("timestamp"))
-        formatted_time = timestamp.strftime("%I:%M %p on %B %d, %Y")
-        prompt_parts.append(f"The local time is {formatted_time} ({time.get('timezone')}).")
-
-    image = context.get("image")
-    if image:
-        prompt_parts.append("The user recently uploaded an image.")
-
-    last_message = context.get("last_message")
-    if last_message:
-        prompt_parts.append(f"{user_name} said: '{last_message}'.")
-
-    return "\n".join(prompt_parts)
 
 
 
@@ -137,9 +115,66 @@ async def build_user_profile(user_id: str, websocket: WebSocket):
     await websocket.send_json({"type": "orchestration", "status": "user profile built"})
 
 
+
+
+
+async def build_contextual_prompt(user_id: str) -> str:
+    
+    profile_service = ProfileRepository()
+    # Get the user's name
+    user_name = profile_service.get_user_name(user_id)
+    
+    if user_name:
+        prompt_parts = [f"You are Noelle, an AI companion for {user_name}."]
+    else:
+        prompt_parts = ["You are Noelle, an AI companion for the user."]
+     
+     
+    context = get_context(user_id)
+    
+    print( "Context", context)
+    
+    mbti_type = context.get("mbti_type")
+    if mbti_type:
+        prompt_parts.append(f"The user's MBTI type is {mbti_type}.")
+    
+    ocean_traits = context.get("ocean_traits")
+    if ocean_traits:
+        prompt_parts.append(f"The user's ocean traits are {ocean_traits}.")
+    
+    location = context.get("gps")
+    if location:
+        # TODO: Get city from latitude and longitude
+        location_name = await reverse_geocode(location['latitude'], location['longitude'])
+        prompt_parts.append(f"The user is currently located at {location_name}")
+
+    time = context.get("time")
+    if time:
+        timestamp = parser.parse(time.get("timestamp"))
+        formatted_time = timestamp.strftime("%I:%M %p on %B %d, %Y")
+        prompt_parts.append(f"The local time is {formatted_time} ({time.get('timezone')}).")
+
+    image = context.get("image")
+    if image:
+        prompt_parts.append("The user recently uploaded an image.")
+
+    last_message = context.get("last_message")
+    if last_message:
+        prompt_parts.append(f"{user_name} said: '{last_message}'.")
+        
+    
+
+    return "\n".join(prompt_parts)
+
+
+
+
+
+
+
 async def orchestration_websocket( user_id: str, agent: Agent,   user_input: str, websocket: WebSocket, summarize: int = 10, extract: bool = True) -> RunResultStreaming:
     await websocket.send_json({"type": "orchestration", "status": "processing"})
-    
+        
     slang_service = SlangExtractionService(user_id)
     memory_service = MemoryExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
@@ -204,12 +239,25 @@ async def orchestration_websocket( user_id: str, agent: Agent,   user_input: str
     ))
     
     noelle_agent.instructions = f"""
-    {initial_instructions} 
-    
+User Contextual Prompt:
+    user_id: {user_id}
     {await build_contextual_prompt(user_id)} 
     
+Instructions:
+    {initial_instructions} 
+
+Fun Slang you can use:
+    {slang_result_pretty_print}
+ 
+Conversation History:
+    {history_string}
+    
+The user's input:
+    {user_input}
+    """ 
     # TODO: add all the memories and context
-    """
+    
+    print(f"Noelle instructions: {noelle_agent.instructions}")
 
     # Streaming: run the agent in streaming mode
     response : RunResultStreaming = Runner.run_streamed(noelle_agent, input=user_input)
