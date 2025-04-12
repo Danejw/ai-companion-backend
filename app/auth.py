@@ -47,13 +47,13 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 
 
 async def verify_token_websocket(websocket: WebSocket):
-    await websocket.accept()
+    #await websocket.accept()
     
     token = websocket.query_params.get("token")
     if not token:
         # Policy violation: no token found
         
-        await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
 
@@ -61,10 +61,10 @@ async def verify_token_websocket(websocket: WebSocket):
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience="authenticated")
         user_id: str = payload.get("sub")
         
-        await websocket.send_json({"type": "info", "text": "AUTHENTICATED"})
+        #await websocket.send_json({"type": "info", "text": "AUTHENTICATED"})
         
         if user_id is None:
-            await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+            #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
 
@@ -73,6 +73,6 @@ async def verify_token_websocket(websocket: WebSocket):
 
     except JWTError:
         # Token is invalid or expired
-        await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
