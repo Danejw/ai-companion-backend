@@ -2,7 +2,7 @@
 import asyncio
 import base64
 import os
-from agents import Agent, RunResultStreaming
+from agents import Agent, RunResultStreaming, Runner
 from fastapi import WebSocket
 from openai import AsyncOpenAI
 from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
@@ -18,10 +18,9 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 async def handle_text(agent: Agent, websocket: WebSocket, message: TextMessage, user_id: str):
     await websocket.send_json({"type": "text_action", "status": "ok"})
-    update_context(user_id, "last_message", message.text)
     update_context(user_id, "settings", message)
-    # response = await Runner.run(agent, message.text)
-    # await websocket.send_json({"type": "ai_response", "text": response.final_output})
+    update_context(user_id, "last_message", message.text)
+
     
     print("Added Text: ", get_context(user_id))
 
@@ -61,14 +60,48 @@ async def handle_time(websocket: WebSocket, message: TimeMessage, user_id: str):
     })
     await websocket.send_json({"type": "time_action", "status": "ok"})
 
-async def handle_ui_action(websocket: WebSocket, message: UIActionMessage):
-    # Just send it back for now
-    await websocket.send_json({
-        "type": "ui_action",
-        "action": message.action,
-        "target": message.target,
-        "status": "ok"
-    })
+
+ui_action_agent = Agent(
+    name="UI Action Agent",
+    instructions="""
+    given the user's input, decide if you need to send a ui action to the user.
+    if you do, return the action, target, and status.
+    if you don't, return a ui message with the action as "none".
+    
+    You can choose one of the following actions:
+    - toggle_conversation_history
+    - toggle_knowledge_base
+    - toggle_credits
+    - toggle_settings
+    - toggle_inoformation
+    
+    Example:
+    User: "Show me the conversation history"
+    UI Action: "toggle_conversation_history"
+    
+    User: "What is the weather in Tokyo?"
+    UI Action: "none"
+    """,
+    model="gpt-4o-mini",
+    output_type=UIActionMessage
+)
+
+
+
+async def handle_ui_action(websocket: WebSocket, message: str):
+    # decide what to do based on the user input
+    ui_result = await Runner.run(ui_action_agent, message)
+    
+    ui_action: UIActionMessage = UIActionMessage.model_validate(ui_result.final_output)
+    
+    if ui_action.action != "none":
+        response_dict = ui_action.model_dump()
+        await websocket.send_json(response_dict)
+
+    
+    
+    
+    
 
 async def handle_orchestration(agent: Agent, websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})
@@ -86,7 +119,9 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
         
     print("Settings: ", settings)
 
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket, extract=settings.extract, summarize=settings.summarize)
+    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
+
+    asyncio.create_task(handle_ui_action(websocket, message.user_input))
 
     async for event in result.stream_events():
         if event.type == "raw_response_event":
@@ -125,11 +160,14 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     history = append_message_to_history(user_id, agent.name, final)
 
     # Process the history and costs in the background
-    asyncio.create_task(process_history(user_id, history, summarize=10, extract=True))
+    asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
     
     
     settings = get_context_key(user_id, "settings")
-    if settings.type == "audio":
+    
+    print("Settings: ", settings)
+    
+    if settings and settings.type == "audio":
         # send audio response
         encoded_audio = await tts(final, settings.voice)
         await websocket.send_json({"type": "audio_response", "audio": encoded_audio})

@@ -6,16 +6,14 @@ from typing import Literal, Union, Optional, Dict
 class TextMessage(BaseModel):
     type: Literal["text"]
     text: str
-    extract: Optional[bool] = True
-    summarize: Optional[int] = 10
+
 
 # AUDIO
 class AudioMessage(BaseModel):
     type: Literal["audio"]
     audio: str  # base64 encoded audio
     voice: Optional[str] = "alloy"
-    extract: Optional[bool] = True
-    summarize: Optional[int] = 10
+
 
 # IMAGE
 class ImageMessage(BaseModel):
@@ -55,6 +53,8 @@ class UIActionMessage(BaseModel):
 class OrchestrateMessage(BaseModel):
     type: Literal["orchestrate"]
     user_input: str
+    extract: Optional[bool] = True
+    summarize: Optional[int] = 10
 
 # UNIFIED MESSAGE TYPE
 Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, OrchestrateMessage]

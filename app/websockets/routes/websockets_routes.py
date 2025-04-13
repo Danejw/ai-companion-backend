@@ -11,7 +11,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
 from app.websockets.context.store import update_context
 from app.function.orchestrate import chat_orchestration
-from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_orchestration, handle_text, handle_time
+from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_orchestration, handle_text, handle_time, handle_ui_action
 from app.websockets.orchestrate_contextual import build_user_profile
 from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, UIActionMessage, OrchestrateMessage
 from pydantic import TypeAdapter
