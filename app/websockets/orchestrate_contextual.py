@@ -1,5 +1,6 @@
 # app/orchestration/orchestrate_contextual.py
 import asyncio
+import os
 from fastapi import WebSocket
 from app.function.memory_extraction import MemoryExtractionService
 from app.function.supabase_tools import clear_history, create_user_feedback, get_user_birthdate, get_user_gender, get_user_location, get_users_name, retrieve_personalized_info_about_user, update_user_birthdate, update_user_gender, update_user_location, update_user_name
@@ -17,7 +18,9 @@ from app.websockets.context.store import get_context, get_context_key, update_co
 from agents import Agent, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 
-from app.websockets.schemas.messages import UIActionMessage
+
+openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
+
 
 
 profile_repo = ProfileRepository()
@@ -110,7 +113,7 @@ Available Function Tools:
 noelle_agent = Agent(
     name=agent_name,
     handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
-    model="gpt-4o-mini", # "o3-mini"
+    model=openai_model, # "o3-mini"
     tools=[
         database_agent.as_tool(
             tool_name="database_agent",
@@ -184,9 +187,7 @@ async def build_contextual_prompt(user_id: str) -> str:
         prompt_parts.append("    You don't know the user's name yet. You will need to ask the user for their name. (automatically update the user name in the database when you get it) \n")
      
     context = get_context(user_id)
-    
-    print( "Context", context)
-    
+        
     mbti_type = context.get("mbti_type")
     if mbti_type:
         prompt_parts.append(f"      The user's MBTI type is {mbti_type}.")
@@ -255,27 +256,28 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
             
             if similar_memories and len(similar_memories) > 0:
             
-                print(f"\n--------- Similar Memories ---------\n")
+                # print(f"\n--------- Similar Memories ---------\n")
                 
-                print(f"Id: {similar_memories[0]['id']}")
-                print(f"{memory_string}")
+                # print(f"Id: {similar_memories[0]['id']}")
+                # print(f"{memory_string}")
                 
-                print(f"\n----------------------------------------\n")
+                # print(f"\n----------------------------------------\n")
                 
                 relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
                 
                 await websocket.send_json({"type": "orchestration", "status": "recalling context"})
                 
-                print(f"\n--------- Relational Context ---------\n")
+                # print(f"\n--------- Relational Context ---------\n")
                           
                 relational_context_string = pretty_print_memories(relational_context)
-                print(relational_context_string)
+                # print(relational_context_string)
 
                     
-                print(f"\n----------------------------------------\n")
+                # print(f"\n----------------------------------------\n")
                 
             else:
-                print("No similar memories found")
+                # print("No similar memories found")
+                pass
            
     # Behavior classification
     tpb = await tpb_service.classify_behavior(history_string)
@@ -318,7 +320,7 @@ The user's input:
     """ 
     # TODO: add all the memories and context
     
-    print(f"Noelle instructions: {noelle_agent.instructions}")
+    # print(f"Noelle instructions: {noelle_agent.instructions}")
 
     # Streaming: run the agent in streaming mode
     response : RunResultStreaming = Runner.run_streamed(noelle_agent, input=user_input)
