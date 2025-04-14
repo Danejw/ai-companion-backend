@@ -73,11 +73,8 @@ async def handle_gps(websocket: WebSocket, message: GPSMessage, user_id: str):
 
 
 async def handle_time(websocket: WebSocket, message: TimeMessage, user_id: str):
-    update_context(user_id, "time", {
-        "timestamp": message.timestamp,
-        "timezone": message.timezone
-    })
     await websocket.send_json({"type": "time_action", "status": "ok"})
+    update_context(user_id, "time", {"timestamp": message.timestamp, "timezone": message.timezone})
 
 ui_action_agent = Agent(
     name="UI Action Agent",
