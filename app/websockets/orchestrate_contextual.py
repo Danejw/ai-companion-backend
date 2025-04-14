@@ -1,5 +1,4 @@
 # app/orchestration/orchestrate_contextual.py
-import asyncio
 import os
 from fastapi import WebSocket
 from app.function.memory_extraction import MemoryExtractionService
@@ -21,12 +20,9 @@ from dateutil import parser
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
 
-
-
 profile_repo = ProfileRepository()
 
 agent_name = "Noelle"
-
 
 personalized_instructions = f"""
 Your personality and purpose:
@@ -133,11 +129,6 @@ noelle_agent = Agent(
 )
     
 
-
-
-
-
-
 async def build_user_profile(user_id: str, websocket: WebSocket):
     await websocket.send_json({"type": "orchestration", "status": "building user profile"})
     
@@ -167,9 +158,6 @@ async def build_user_profile(user_id: str, websocket: WebSocket):
     update_context(user_id, "ocean_traits", ocean_traits)
     
     await websocket.send_json({"type": "orchestration", "status": "user profile built"})
-
-
-
 
 
 async def build_contextual_prompt(user_id: str) -> str:
@@ -211,18 +199,7 @@ async def build_contextual_prompt(user_id: str) -> str:
     if image:
         prompt_parts.append("     The user recently uploaded an image.")
 
-    #last_message = context.get("last_message")
-    # if last_message:
-    #     prompt_parts.append(f"{user_name} said: '{last_message}'.")
-        
-    
-
     return "\n".join(prompt_parts)
-
-
-
-
-
 
 
 async def orchestration_websocket( user_id: str, user_input: str, websocket: WebSocket, summarize: int = 10, extract: bool = True) -> RunResultStreaming:
@@ -288,7 +265,6 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
     memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
     
     last_image_analysis = get_context_key(user_id, "last_image_analysis")
-    #print("Last Image Analysis: ", last_image_analysis)
      
 
     noelle_agent.tools.append(memory_agents.agent.as_tool(
@@ -318,9 +294,8 @@ The last image analysis (if any):
 The user's input:
     {user_input}
     """ 
-    # TODO: add all the memories and context
-    
-    # print(f"Noelle instructions: {noelle_agent.instructions}")
+
+    #print(f"Noelle instructions: {noelle_agent.instructions}")
 
     # Streaming: run the agent in streaming mode
     response : RunResultStreaming = Runner.run_streamed(noelle_agent, input=user_input)

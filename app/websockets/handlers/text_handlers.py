@@ -54,10 +54,10 @@ async def handle_gps(websocket: WebSocket, message: GPSMessage, user_id: str):
 
     # print("Context: ", get_context(user_id))    
 
-
 async def handle_time(websocket: WebSocket, message: TimeMessage, user_id: str):
     await websocket.send_json({"type": "time_action", "status": "ok"})
     update_context(user_id, "time", {"timestamp": message.timestamp, "timezone": message.timezone})
+
 
 ui_action_agent = Agent(
     name="UI Action Agent",
@@ -104,8 +104,6 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
     user_input = get_context_key(user_id, "last_message")
     settings = get_context_key(user_id, "settings")
         
-    print("Settings: ", settings)
-
     result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
     asyncio.create_task(handle_ui_action(websocket, message.user_input))
@@ -150,7 +148,6 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
     # Process the history and costs in the background
     asyncio.create_task(process_history(user_id, history, summarize=10, extract=True))
     
-    
     settings = get_context_key(user_id, "settings")
     if settings.type == "audio":
         # send audio response
@@ -177,7 +174,7 @@ async def analyze_image(image_data: list[str], image_message: str = "what's in t
         )
         
         analysis = response.output_text
-        
+                
         return analysis
 
     except Exception as e:
