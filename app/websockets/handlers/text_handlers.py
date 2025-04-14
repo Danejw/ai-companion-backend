@@ -1,6 +1,7 @@
 # app/websocket_handlers/text_handler.py
 import asyncio
 import base64
+from io import BytesIO
 import os
 from agents import Agent, RunResultStreaming, Runner
 from fastapi import WebSocket
@@ -16,15 +17,13 @@ from app.websockets.schemas.messages import OrchestrateMessage, UIActionMessage,
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-async def handle_text(agent: Agent, websocket: WebSocket, message: TextMessage, user_id: str):
+async def handle_text(websocket: WebSocket, message: TextMessage, user_id: str):
     await websocket.send_json({"type": "text_action", "status": "ok"})
-    update_context(user_id, "settings", message)
     update_context(user_id, "last_message", message.text)
+    update_context(user_id, "settings", message)    
 
-    
-    print("Added Text: ", get_context(user_id))
 
-async def handle_audio(agent: Agent, websocket: WebSocket, message: AudioMessage, user_id: str):
+async def handle_audio(websocket: WebSocket, message: AudioMessage, user_id: str):
     await websocket.send_json({"type": "audio_action", "status": "ok"})
     update_context(user_id, "settings", message)
     # Transcribe audio using Whisper
@@ -37,9 +36,12 @@ async def handle_audio(agent: Agent, websocket: WebSocket, message: AudioMessage
 
 # TODO: handle everything below this
 async def handle_image(websocket: WebSocket, message: ImageMessage, user_id: str):
-    await websocket.send_json({"type": "image_action", "status": "ok"})
+    await websocket.send_json({"type": "image_action", "status": "image ok"})
+    await websocket.send_json({"type": "info", "text": "Analyzing image..."})
+    image_analysis = await analyze_image(image_data=message.data, image_message=message.input, image_format=message.format)    
+    update_context(user_id, "last_image_analysis", image_analysis)
+    await websocket.send_json({"type": "image_analysis", "text": image_analysis})
 
-    update_context(user_id, "image", {"format": message.format})
 
 async def handle_gps(websocket: WebSocket, message: GPSMessage, user_id: str):
     await websocket.send_json({"type": "gps_action", "status": "ok"})
@@ -52,21 +54,19 @@ async def handle_gps(websocket: WebSocket, message: GPSMessage, user_id: str):
 
     # print("Context: ", get_context(user_id))    
 
-
 async def handle_time(websocket: WebSocket, message: TimeMessage, user_id: str):
-    update_context(user_id, "time", {
-        "timestamp": message.timestamp,
-        "timezone": message.timezone
-    })
     await websocket.send_json({"type": "time_action", "status": "ok"})
+    update_context(user_id, "time", {"timestamp": message.timestamp, "timezone": message.timezone})
 
 
 ui_action_agent = Agent(
     name="UI Action Agent",
     instructions="""
-    given the user's input, decide if you need to send a ui action to the user.
-    if you do, return the action, target, and status.
-    if you don't, return a ui message with the action as "none".
+    Given the user's input, decide if you need to send a ui action to the user.
+    If you do, return the action, target, and status.
+    If you don't, return a ui message with the action as "none".
+    Only return an action if you are sure about the action.
+    Return with the action of "none" if you are unsure.
     
     You can choose one of the following actions:
     - toggle_conversation_history
@@ -86,8 +86,6 @@ ui_action_agent = Agent(
     output_type=UIActionMessage
 )
 
-
-
 async def handle_ui_action(websocket: WebSocket, message: str):
     # decide what to do based on the user input
     ui_result = await Runner.run(ui_action_agent, message)
@@ -97,29 +95,16 @@ async def handle_ui_action(websocket: WebSocket, message: str):
     if ui_action.action != "none":
         response_dict = ui_action.model_dump()
         await websocket.send_json(response_dict)
-
-    
-    
-    
     
 
-async def handle_orchestration(agent: Agent, websocket: WebSocket, message: OrchestrateMessage, user_id: str):
+
+async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})
-    
-    print("Orchestrating: ", message.user_input)
-    
-    system_prompt = await build_contextual_prompt(user_id)
-    
-    print( "System prompt", system_prompt)
-    
-    agent.instructions = system_prompt
     
     user_input = get_context_key(user_id, "last_message")
     settings = get_context_key(user_id, "settings")
         
-    print("Settings: ", settings)
-
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
+    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
     asyncio.create_task(handle_ui_action(websocket, message.user_input))
 
@@ -157,23 +142,44 @@ async def handle_orchestration(agent: Agent, websocket: WebSocket, message: Orch
     await websocket.send_json({"type": "ai_transcript", "text": final})
     await websocket.send_json({"type": "orchestration", "status": "done"})
     
-    history = append_message_to_history(user_id, agent.name, final)
+    # TODO: change this to the actual agent name dynamically
+    history = append_message_to_history(user_id, "Noelle", final)
 
     # Process the history and costs in the background
-    asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
-    
+    asyncio.create_task(process_history(user_id, history, summarize=10, extract=True))
     
     settings = get_context_key(user_id, "settings")
-    
-    print("Settings: ", settings)
-    
-    if settings and settings.type == "audio":
+    if settings.type == "audio":
         # send audio response
         encoded_audio = await tts(final, settings.voice)
         await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
 
 
 # Helpers
+async def analyze_image(image_data: list[str], image_message: str = "what's in this image?", image_format: str = "jpeg") -> str: # image_data is base64 encoded
+    try:    
+        # Build content array with the text message first
+        content = [{ "type": "input_text", "text": image_message }]
+        
+        # Add all images from the list
+        for img in image_data:
+            content.append({
+                "type": "input_image",
+                "image_url": f"data:image/{image_format};base64,{img}",
+            })
+        
+        response = await openai_client.responses.create(
+            model="gpt-4o-mini",
+            input=[{"role": "user", "content": content}]
+        )
+        
+        analysis = response.output_text
+                
+        return analysis
+
+    except Exception as e:
+        return "Failed to analyze image"
+
 async def stt(audio_bytes: bytes) -> str:
     transcript_response = await openai_client.audio.transcriptions.create(
         model="whisper-1", #"whisper-1", gpt-4o-transcribe, gpt-4o-mini-transcribe

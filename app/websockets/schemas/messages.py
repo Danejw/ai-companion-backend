@@ -7,19 +7,18 @@ class TextMessage(BaseModel):
     type: Literal["text"]
     text: str
 
-
 # AUDIO
 class AudioMessage(BaseModel):
     type: Literal["audio"]
     audio: str  # base64 encoded audio
     voice: Optional[str] = "alloy"
 
-
 # IMAGE
 class ImageMessage(BaseModel):
     type: Literal["image"]
     format: Literal["jpeg", "png"]
-    data: str  # base64 encoded image
+    data: list[str]  # base64 encoded image
+    input: Optional[str] = "what's in this image?"
 
 # LOCATION (GPS)
 class GPSCoords(BaseModel):
