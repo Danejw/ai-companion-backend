@@ -11,7 +11,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
 from app.websockets.context.store import update_context
 from app.function.orchestrate import chat_orchestration
-from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_orchestration, handle_text, handle_time
+from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_image, handle_orchestration, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
 from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, UIActionMessage, OrchestrateMessage
 from pydantic import TypeAdapter
@@ -96,8 +96,7 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                     await handle_audio(websocket, message, user_id)
 
                 case ImageMessage():
-                    update_context(user_id, "image", {"format": message.format})
-                    await websocket.send_json({"type": "image_action", "status": "ok"})
+                    await handle_image(websocket, message, user_id)
 
                 case GPSMessage():
                     await handle_gps(websocket, message, user_id)
@@ -105,12 +104,13 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                 case TimeMessage():
                     await handle_time(websocket, message, user_id)
 
-                case UIActionMessage():
-                    print(f"Received UI action: {message.action} on {message.target}")
-                    await websocket.send_json({"type": "ui_action", "status": "ok"})
+                # case UIActionMessage():
+                #     print(f"Received UI action: {message.action} on {message.target}")
+                #     await websocket.send_json({"type": "ui_action", "status": "ok"})
                 
                 case OrchestrateMessage():
                     await handle_orchestration(websocket, message, user_id)
+                
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for user {user_id}")
 

@@ -17,7 +17,8 @@ class AudioMessage(BaseModel):
 class ImageMessage(BaseModel):
     type: Literal["image"]
     format: Literal["jpeg", "png"]
-    data: str  # base64 encoded image
+    data: list[str]  # base64 encoded image
+    input: Optional[str] = "what's in this image?"
 
 # LOCATION (GPS)
 class GPSCoords(BaseModel):

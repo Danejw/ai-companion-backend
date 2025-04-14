@@ -20,11 +20,8 @@ openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 async def handle_text(websocket: WebSocket, message: TextMessage, user_id: str):
     await websocket.send_json({"type": "text_action", "status": "ok"})
     update_context(user_id, "last_message", message.text)
-    update_context(user_id, "settings", message)
-    # response = await Runner.run(agent, message.text)
-    # await websocket.send_json({"type": "ai_response", "text": response.final_output})
-    
-    print("Added Text: ", get_context(user_id))
+    update_context(user_id, "settings", message)    
+
 
 async def handle_audio(websocket: WebSocket, message: AudioMessage, user_id: str):
     await websocket.send_json({"type": "audio_action", "status": "ok"})
@@ -39,25 +36,11 @@ async def handle_audio(websocket: WebSocket, message: AudioMessage, user_id: str
 
 # TODO: handle everything below this
 async def handle_image(websocket: WebSocket, message: ImageMessage, user_id: str):
-    await websocket.send_json({"type": "image_action", "status": "ok"})
-
-    
-    image_analysis = await analyze_image(message.data, message.format)
-    
-    update_context(user_id, "image", {"analysis": image_analysis})
+    await websocket.send_json({"type": "image_action", "status": "image ok"})
+    await websocket.send_json({"type": "info", "text": "Analyzing image..."})
+    image_analysis = await analyze_image(image_data=message.data, image_message=message.input, image_format=message.format)    
+    update_context(user_id, "last_image_analysis", image_analysis)
     await websocket.send_json({"type": "image_analysis", "text": image_analysis})
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 async def handle_gps(websocket: WebSocket, message: GPSMessage, user_id: str):
@@ -176,41 +159,29 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
 
 
 # Helpers
-
-async def analyze_image(image_data: bytes, image_format: str) -> str:
-    try:
-        # Decode base64 image data
-        image_data = base64.b64decode(image_data)
-        image_format = image_format.lower()
-
-       # Create a readable image file-like object
-        image_file = BytesIO(image_data)
-
-        # Optionally: Run analysis using OpenAI Vision
-        result = await openai_client.chat.completions.create(
+async def analyze_image(image_data: list[str], image_message: str = "what's in this image?", image_format: str = "jpeg") -> str: # image_data is base64 encoded
+    try:    
+        # Build content array with the text message first
+        content = [{ "type": "input_text", "text": image_message }]
+        
+        # Add all images from the list
+        for img in image_data:
+            content.append({
+                "type": "input_image",
+                "image_url": f"data:image/{image_format};base64,{img}",
+            })
+        
+        response = await openai_client.responses.create(
             model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "What do you see in this image?"},
-                        {"type": "image_url", "image_url": {
-                            "url": f"data:image/{image_format};base64,{image_data}"
-                        }}
-                    ],
-                },
-            ],
-            max_tokens=1000
+            input=[{"role": "user", "content": content}]
         )
-
-        analysis = result.choices[0].message.content
-
+        
+        analysis = response.output_text
+        
         return analysis
 
     except Exception as e:
         return "Failed to analyze image"
-
-
 
 async def stt(audio_bytes: bytes) -> str:
     transcript_response = await openai_client.audio.transcriptions.create(

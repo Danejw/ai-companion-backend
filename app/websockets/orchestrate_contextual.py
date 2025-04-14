@@ -13,7 +13,7 @@ from app.supabase.conversation_history import append_message_to_history
 from app.supabase.knowledge_edges import get_connected_memories, pretty_print_memories
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
-from app.websockets.context.store import get_context, update_context
+from app.websockets.context.store import get_context, get_context_key, update_context
 from agents import Agent, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 
@@ -284,6 +284,10 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
 
 
     memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
+    
+    last_image_analysis = get_context_key(user_id, "last_image_analysis")
+    #print("Last Image Analysis: ", last_image_analysis)
+     
 
     noelle_agent.tools.append(memory_agents.agent.as_tool(
         tool_name="memory_search",
@@ -305,6 +309,9 @@ Fun Slang you can use:
  
 Conversation History:
     {history_string}
+    
+The last image analysis (if any): 
+    {last_image_analysis}
     
 The user's input:
     {user_input}
