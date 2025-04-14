@@ -51,13 +51,6 @@ custom_tts_settings = TTSModelSettings(
 )
 
 
-agent = Agent(
-        name="Hawaii Tutor Agent",
-        handoff_description="An agent teaches the user about Hawaiian culture, history, and language.",
-        instructions=instructions,
-        model="gpt-4o-mini"         
-    )
-
 
 @router.websocket("/main")
 async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_token_websocket)):
@@ -97,10 +90,10 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                 continue
             match message:          
                 case TextMessage():
-                    await handle_text(agent, websocket, message, user_id)
+                    await handle_text(websocket, message, user_id)
                 
                 case AudioMessage():
-                    await handle_audio(agent, websocket, message, user_id)
+                    await handle_audio(websocket, message, user_id)
 
                 case ImageMessage():
                     update_context(user_id, "image", {"format": message.format})
@@ -117,7 +110,7 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                     await websocket.send_json({"type": "ui_action", "status": "ok"})
                 
                 case OrchestrateMessage():
-                    await handle_orchestration(agent, websocket, message, user_id)
+                    await handle_orchestration(websocket, message, user_id)
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for user {user_id}")
 

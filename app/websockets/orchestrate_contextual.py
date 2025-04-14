@@ -17,41 +17,54 @@ from app.websockets.context.store import get_context, update_context
 from agents import Agent, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 
+from app.websockets.schemas.messages import UIActionMessage
+
 
 profile_repo = ProfileRepository()
 
-
-
-
 agent_name = "Noelle"
 
-initial_instructions = f"""
-Riff with the user to make the conversation more interesting and engaging. 
-Speak in a way that is natural and conversational.
 
-Use your memories and context to connect the dots and make the conversation more meaningful.
-Use your knowledge of the user to make the conversation more personalized.
-Use your slang to make the conversation more engaging.
+personalized_instructions = f"""
+Your personality and purpose:
+    Your name is {agent_name} and you are an AI companion for the user.
+    Riff with the user to make the conversation more interesting and engaging.
+    Speak in a way that is natural and conversational.
 
-DO NOT MENTION THE MBTI OR OCEAN TRAITS IN YOUR RESPONSES.
-ONLY ASK QUESTIONS IF IT ADDS VALUE TO THE CONVERSATION AND ONLY ASK ONE QUESTION AT A TIME.
-DO NOT MENTION OPENAI IN YOUR RESPONSES.
+    What to do:
+        Use your memories and context to connect the dots and make the conversation more meaningful.
+        Use your knowledge of the user to make the conversation more personalized.
+        Use your slang to make the conversation more engaging.
 
-TAKE THE INITIATIVE TO USE YOUR TOOLS
+    What not to do:
+        DO NOT MENTION THE MBTI OR OCEAN TRAITS IN YOUR RESPONSES.
+        ONLY ASK QUESTIONS IF IT ADDS VALUE TO THE CONVERSATION AND ONLY ASK ONE QUESTION AT A TIME.
+        DO NOT MENTION OPENAI IN YOUR RESPONSES.
+"""
 
-Function Tools:
-   - Get the user's name using "get_users_name" tool
-   - if the user gives their name, automatically update the user's name using "update_user_name" tool
-   - Get the user's birthdate using "get_user_birthdate" tool
-   - if the user gives their birthdate, automatically update the user's birthdate using "update_user_birthdate" tool
-   - Get the user's location using "get_user_location" tool
-   - if the user gives their location, automatically update the user's location using "update_user_location" tool
-   - Get the user's gender using "get_user_gender" tool
-   - if the user gives their gender, automatically update the user's gender using "update_user_gender" tool
-   - Search the internet for the user's answer using the "search_agent" as a tool. It is smart so give it enough context to work with.
-   - Search your memories of the user for relevant information and context to make the conversation more meaningful using the "memory_search" tool. It is smart so give it enough context to work with.
-   - Clear the conversation history using the "clear_history" tool
 
+tool_instructions = f"""
+
+Tool Instructions:
+    TAKE THE INITIATIVE TO USE YOUR TOOLS
+
+    You have access to specialized tools for assisting the user. When you detect an opportunity to improve or personalize the conversation, invoke the relevant tool with helpful context. Each tool is smart, so provide any details the user has shared.
+
+
+    1. database_agent (make sure to provide the user_id when using this tool)
+        Used to read or update user profile information.
+        Set user name: If the user introduces themselves, update their name.
+        Get user birthdate: Ask for or retrieve birthdate if relevant to the context.
+        Set user birthdate: If shared, store it.
+        Get/set user location: If the user's location is mentioned or needed, use this.
+        Get/set user gender: Same for gender.
+        Clear conversation history: Use if the user wants a fresh start.
+
+    2. search_agent
+        Use this tool to search the internet and retrieve current information that isn't in your memory.
+
+    3. memory_search
+        Search your own memory of the user for anything that might make your response more helpful or personalized.
 """
 
 
@@ -64,11 +77,24 @@ search_agent = Agent(
         tools=[WebSearchTool()]
     )
 
+database_agent = Agent(
+    name="Database",
+    handoff_description="A database agent.",
+    instructions="""
+You are a database agent with function to interact with the user's database and database tools.
 
-noelle_agent = Agent(
-    name=agent_name,
-    handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
-    model="gpt-4o-mini", # "o3-mini"
+Available Function Tools:
+   - Get the user's name using "get_users_name" tool
+   - Update the user's name using "update_user_name" tool
+   - Get the user's birthdate using "get_user_birthdate" tool
+   - Update the user's birthdate using "update_user_birthdate" tool
+   - Get the user's location using "get_user_location" tool
+   - Update the user's location using "update_user_location" tool
+   - Get the user's gender using "get_user_gender" tool
+   - Update the user's gender using "update_user_gender" tool
+   - Clear the conversation history using the "clear_history" tool
+    """,
+    model="gpt-4o-mini",
     tools=[
         get_users_name, update_user_name,
         get_user_birthdate, update_user_birthdate,
@@ -76,7 +102,20 @@ noelle_agent = Agent(
         get_user_gender, update_user_gender,
         clear_history,
         retrieve_personalized_info_about_user,
-        create_user_feedback,
+        create_user_feedback
+    ]       
+)
+
+
+noelle_agent = Agent(
+    name=agent_name,
+    handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
+    model="gpt-4o-mini", # "o3-mini"
+    tools=[
+        database_agent.as_tool(
+            tool_name="database_agent",
+            tool_description="The database agent can be used to get the user's name, birthdate, location, gender, and other information."
+        ),
         
         search_agent.as_tool(
             tool_name="web_search",
@@ -104,6 +143,8 @@ async def build_user_profile(user_id: str, websocket: WebSocket):
     # Initialize analysis services and retrieve context info
     mbti_service = MBTIAnalysisService(user_id)
     ocean_service = OceanAnalysisService(user_id)
+
+    update_context(user_id, "user_id", user_id)
     
     # Get the user's name
     user_name = profile_service.get_user_name(user_id)
@@ -133,12 +174,14 @@ async def build_contextual_prompt(user_id: str) -> str:
     profile_service = ProfileRepository()
     # Get the user's name
     user_name = profile_service.get_user_name(user_id)
-    
+
+    prompt_parts = []
+    prompt_parts.append(f"user_id: {user_id} (use this for database operations)")
+
     if user_name:
-        prompt_parts = [f"You are Noelle, an AI companion for {user_name}."]
+        prompt_parts.append(f"The user's name is {user_name}")
     else:
-        prompt_parts = ["You are Noelle, an AI companion for the user."]
-     
+        prompt_parts.append("    You don't know the user's name yet. You will need to ask the user for their name. (automatically update the user name in the database when you get it) \n")
      
     context = get_context(user_id)
     
@@ -146,31 +189,30 @@ async def build_contextual_prompt(user_id: str) -> str:
     
     mbti_type = context.get("mbti_type")
     if mbti_type:
-        prompt_parts.append(f"The user's MBTI type is {mbti_type}.")
+        prompt_parts.append(f"      The user's MBTI type is {mbti_type}.")
     
     ocean_traits = context.get("ocean_traits")
     if ocean_traits:
-        prompt_parts.append(f"The user's ocean traits are {ocean_traits}.")
+        prompt_parts.append(f"      The user's ocean traits are {ocean_traits} \n")
     
     location = context.get("gps")
     if location:
-        # TODO: Get city from latitude and longitude
         location_name = await reverse_geocode(location['latitude'], location['longitude'])
-        prompt_parts.append(f"The user is currently located at {location_name}")
+        prompt_parts.append(f"      The user is currently located at {location_name}")
 
     time = context.get("time")
     if time:
         timestamp = parser.parse(time.get("timestamp"))
         formatted_time = timestamp.strftime("%I:%M %p on %B %d, %Y")
-        prompt_parts.append(f"The local time is {formatted_time} ({time.get('timezone')}).")
+        prompt_parts.append(f"      The local time is {formatted_time} ({time.get('timezone')}).")
 
     image = context.get("image")
     if image:
-        prompt_parts.append("The user recently uploaded an image.")
+        prompt_parts.append("     The user recently uploaded an image.")
 
-    last_message = context.get("last_message")
-    if last_message:
-        prompt_parts.append(f"{user_name} said: '{last_message}'.")
+    #last_message = context.get("last_message")
+    # if last_message:
+    #     prompt_parts.append(f"{user_name} said: '{last_message}'.")
         
     
 
@@ -182,7 +224,7 @@ async def build_contextual_prompt(user_id: str) -> str:
 
 
 
-async def orchestration_websocket( user_id: str, agent: Agent,   user_input: str, websocket: WebSocket, summarize: int = 10, extract: bool = True) -> RunResultStreaming:
+async def orchestration_websocket( user_id: str, user_input: str, websocket: WebSocket, summarize: int = 10, extract: bool = True) -> RunResultStreaming:
     await websocket.send_json({"type": "orchestration", "status": "processing"})
         
     slang_service = SlangExtractionService(user_id)
@@ -249,13 +291,14 @@ async def orchestration_websocket( user_id: str, agent: Agent,   user_input: str
     ))
     
     noelle_agent.instructions = f"""
-Instructions:
-    {initial_instructions} 
+The user's id is, use this for database operations: {user_id}
 
-User Contextual Prompt:
-    user_id: {user_id}
-    {await build_contextual_prompt(user_id)} 
+{personalized_instructions}
 
+The user's imformation:
+    {await build_contextual_prompt(user_id)}  
+    
+{tool_instructions} 
 
 Fun Slang you can use:
     {slang_result_pretty_print}
