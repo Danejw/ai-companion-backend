@@ -3,7 +3,7 @@ import asyncio
 import base64
 from io import BytesIO
 import os
-from agents import Agent, RunResultStreaming
+from agents import Agent, RunResultStreaming, Runner
 from fastapi import WebSocket
 from openai import AsyncOpenAI
 from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
@@ -79,17 +79,6 @@ async def handle_time(websocket: WebSocket, message: TimeMessage, user_id: str):
     })
     await websocket.send_json({"type": "time_action", "status": "ok"})
 
-<<<<<<< Updated upstream
-async def handle_ui_action(websocket: WebSocket, message: UIActionMessage):
-    # Just send it back for now
-    await websocket.send_json({
-        "type": "ui_action",
-        "action": message.action,
-        "target": message.target,
-        "status": "ok"
-    })
-=======
-
 ui_action_agent = Agent(
     name="UI Action Agent",
     instructions="""
@@ -128,11 +117,6 @@ async def handle_ui_action(websocket: WebSocket, message: str):
         await websocket.send_json(response_dict)
     
 
-    
-    
-    
-    
->>>>>>> Stashed changes
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})
@@ -142,13 +126,9 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
         
     print("Settings: ", settings)
 
-<<<<<<< Updated upstream
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, agent=agent, user_input=user_input, websocket=websocket, extract=settings.extract, summarize=settings.summarize)
-=======
     result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
     asyncio.create_task(handle_ui_action(websocket, message.user_input))
->>>>>>> Stashed changes
 
     async for event in result.stream_events():
         if event.type == "raw_response_event":
