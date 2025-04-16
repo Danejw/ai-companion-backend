@@ -74,6 +74,7 @@ ui_action_agent = Agent(
     - toggle_credits
     - toggle_settings
     - toggle_inoformation
+    - toggle_capture
     
     Example:
     User: "Show me the conversation history"
