@@ -1,4 +1,5 @@
 # app/orchestration/orchestrate_contextual.py
+import logging
 import os
 from fastapi import WebSocket
 from app.function.memory_extraction import MemoryExtractionService
@@ -14,7 +15,7 @@ from app.supabase.knowledge_edges import get_connected_memories, pretty_print_me
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context, get_context_key, update_context
-from agents import Agent, RunResultStreaming, Runner, WebSearchTool
+from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 from app.personal_agents.notification_agent import notification_agent
 
@@ -111,6 +112,20 @@ Available Function Tools:
     ]       
 )
 
+class MyContext:
+    user_id: str
+
+class MyHooks(AgentHooks[MyContext]):
+    async def on_start(self, context, agent):
+        logging.info(f"Starting agent {agent.name} for user {context.context.user_id}")
+    async def on_end(self, context, agent, output):
+        logging.info(f"Agent {agent.name} finished with output: {output}")
+    async def on_tool_start(self, context, agent, tool):
+        logging.info(f"Tool {tool.name} started")
+    async def on_tool_end(self, context, agent, tool, result):
+        logging.info(f"Tool {tool.name} returned: {result}")
+    async def on_handoff(self, context, agent, source_agent):
+        logging.info(f"{source_agent.name} handed off to {agent.name}")
 
 noelle_agent = Agent(
     name=agent_name,
@@ -136,9 +151,15 @@ noelle_agent = Agent(
             tool_name="notification_agent",
             tool_description="The notification agent can be used to schedule and unschedule push notifications."
         )
-    ]
+    ],
+    model_settings=ModelSettings(
+        parallel_tool_calls=True,
+        temperature=0.9,
+        top_p=0.95
+    ),
+    #hooks=MyHooks(),
 )
-    
+
 
 async def build_user_profile(user_id: str, websocket: WebSocket):
     await websocket.send_json({"type": "orchestration", "status": "building user profile"})
