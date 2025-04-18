@@ -4,6 +4,8 @@ from fastapi import HTTPException, Security, WebSocket, WebSocketException, stat
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from jose import jwt, JWTError
+from app.utils.user_context import current_user_id
+
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
@@ -20,12 +22,12 @@ ALGORITHM = "HS256"  # or whatever you prefer
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
     """
-    ✅ Uses Supabase's built-in authentication API to verify the user's JWT token.
+    Uses Supabase's built-in authentication API to verify the user's JWT token.
     """
     token = credentials.credentials
     logging.info(f"🔍 Verifying Token: {token[:20]}... (truncated)")  # Avoid printing full token
 
-    # 🔥 Verify with Supabase API (instead of manually decoding)
+    # Verify with Supabase API (instead of manually decoding)
     headers = {
         "Authorization": f"Bearer {token}",
         "apikey": SUPABASE_SERVICE_ROLE_KEY
@@ -43,7 +45,10 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
 
     user_data = response.json()
     
-    return user_data  # ✅ Return the user details
+    # Store the user id in the context
+    current_user_id.set(user_data["id"])
+    
+    return user_data  # Return the user details
 
 
 async def verify_token_websocket(websocket: WebSocket):
@@ -67,6 +72,9 @@ async def verify_token_websocket(websocket: WebSocket):
             #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+
+        # Store the user id in the context
+        current_user_id.set(user_id)
 
         # If everything checks out, return the user_id
         return user_id

@@ -2,6 +2,7 @@ import logging
 from fastapi import FastAPI, HTTPException, Request, Depends
 import os
 from dotenv import load_dotenv
+from app.function.notifications import start_scheduler_once
 from app.websockets.routes.websockets_routes import router as ws_router
 
 # Load environment variables first before importing STRIPE_CONFIG
@@ -76,7 +77,7 @@ from app.routes.feedback import router as feedback_router
 from app.routes.voice_routes import router as voice_router
 from app.routes.orchestration_route import router as orchestration_router
 from app.websockets.routes.websockets_routes import router as websockets_router
-from app.routes.push_notifcation import router as push_notifcation_router, start_scheduler_once
+from app.routes.push_notification_routes import router as push_notifcation_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)

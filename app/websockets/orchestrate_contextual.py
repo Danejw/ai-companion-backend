@@ -16,6 +16,7 @@ from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context, get_context_key, update_context
 from agents import Agent, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
+from app.personal_agents.notification_agent import notification_agent
 
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
@@ -65,6 +66,10 @@ Tool Instructions:
 
     3. memory_search
         Search your own memory of the user for anything that might make your response more helpful or personalized.
+    
+    4. notification_agent
+        Use this tool to schedule and unschedule push notifications.
+        Use this tool to create reminders and daily routines for the users.
 """
 
 
@@ -125,6 +130,11 @@ noelle_agent = Agent(
         memory_agents.agent.as_tool(
             tool_name="memory_search",
             tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
+        ),
+        
+        notification_agent.as_tool(
+            tool_name="notification_agent",
+            tool_description="The notification agent can be used to schedule and unschedule push notifications."
         )
     ]
 )
@@ -296,7 +306,7 @@ The user's input:
     {user_input}
     """ 
 
-    #print(f"Noelle instructions: {noelle_agent.instructions}")
+    print(f"Noelle instructions: {noelle_agent.instructions}")
 
     # Streaming: run the agent in streaming mode
     response : RunResultStreaming = Runner.run_streamed(noelle_agent, input=user_input)
