@@ -74,7 +74,7 @@ async def voice_orchestration(user_id: str, voice: Voices = Voices.ALLOY, audio:
     if not final_output:
         return {'error': 'EMPTY_OUTPUT'}
             
-    audio_stream = text_to_speech(final_output, voice)
+    audio_stream = text_to_speech(text=final_output, voice=voice)
 
     return audio_stream, final_output
 

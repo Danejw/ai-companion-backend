@@ -9,11 +9,9 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
-from app.websockets.context.store import update_context
-from app.function.orchestrate import chat_orchestration
 from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_image, handle_orchestration, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, UIActionMessage, OrchestrateMessage
+from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, OrchestrateMessage
 from pydantic import TypeAdapter
 
 router = APIRouter()
@@ -115,6 +113,8 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
         print(f"WebSocket disconnected for user {user_id}")
 
 
+
+# Depricated
 @router.websocket("/voice-orchestration")
 async def websocket_voice(websocket: WebSocket, user_id: str = Depends(verify_token_websocket)):
     await websocket.accept()
@@ -159,6 +159,13 @@ async def websocket_voice(websocket: WebSocket, user_id: str = Depends(verify_to
                     
                 #     final_output += chunk_str
                 # await websocket.send_text(chunk_str)
+                
+                agent = Agent(
+                    name="Basic Agent",
+                    instructions=instructions,
+                    model="gpt-4o-mini",
+                    tools=[get_weather]
+                )
                 
                 ai_response = Runner.run_streamed(agent, user_transcript)
                 

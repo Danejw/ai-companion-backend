@@ -148,7 +148,7 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
     history = append_message_to_history(user_id, "Noelle", final)
 
     # Process the history and costs in the background
-    asyncio.create_task(process_history(user_id, history, summarize=10, extract=True))
+    asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
     
     settings = get_context_key(user_id, "settings")
     if settings.type == "audio":
@@ -221,6 +221,11 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     # deduct credits
     profile_repo = ProfileRepository()
     profile_repo.deduct_credits(user_id, credits_cost)
+    
+    # replace history with summary if the history is longer than the summarize value
+    if history.count > summarize:
+        asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
+    
     
     # costs = f"""
     # Provider Cost: {provider_cost}
