@@ -223,7 +223,7 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     profile_repo.deduct_credits(user_id, credits_cost)
     
     # replace history with summary if the history is longer than the summarize value
-    if history.count > summarize:
+    if len(history) > summarize:
         asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
     
     
