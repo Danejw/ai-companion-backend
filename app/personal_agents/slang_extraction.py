@@ -14,7 +14,7 @@ class SlangScore(BaseModel):
 class SlangMetadata(BaseModel):
     score: SlangScore
     topics: List[str]   # Tags or categories for the slang, if applicable
-    timestamp: datetime
+    timestamp: str
 
 class SlangResult(BaseModel):
     slang_text: str     # The extracted slang or informal expression
