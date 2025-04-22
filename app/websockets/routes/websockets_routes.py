@@ -9,45 +9,15 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
-from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_image, handle_orchestration, handle_text, handle_time
+from app.websockets.handlers.text_handlers import handle_audio, handle_gps, handle_image, handle_orchestration, handle_raw_mode, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, TextMessage, TimeMessage, OrchestrateMessage
+from app.websockets.schemas.messages import AudioMessage, GPSMessage, ImageMessage, Message, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
 from pydantic import TypeAdapter
 
 router = APIRouter()
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 message_adapter = TypeAdapter(Message)
-
-
-@function_tool
-def get_weather(city: str):
-    response = "It always sunny in " + city
-    return response
-
-
-instructions = f"""
-
-You are a tutor for the Hawaiian language.
-
-Response as if you were a native resident of Hawaii with a slight pidgin accent.
-
-Teach the user about to speak in Hawaiian.
-
-Pronounce the words clearly and correctly in the native Hawaiian dialect and toungue.
-
-"""
-
-health_assistant= "Voice Affect: Calm, composed, and reassuring; project quiet authority and confidence."
-"Tone: Sincere, empathetic, and gently authoritative—express genuine apology while conveying competence."
-"Pacing: Steady and moderate; unhurried enough to communicate care, yet efficient enough to demonstrate professionalism."
-
-
-custom_tts_settings = TTSModelSettings(
-    voice="ash",
-    instructions=health_assistant,
-)
-
 
 
 @router.websocket("/main")
@@ -67,7 +37,7 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
     
     # TODO: Moderation check per message input
     
-    print(f"WebSocket connected for user {user_id}")
+    # print(f"WebSocket connected for user {user_id}")
 
     # build user profile
     await build_user_profile(user_id, websocket)
@@ -76,7 +46,9 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
     try:
         while True:
             raw = await websocket.receive_json()
-
+            
+            print("New Message: ", raw)
+            
             try:
                 message = message_adapter.validate_python(raw)
             except ValidationError as ve:
@@ -86,6 +58,8 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                     "details": ve.errors()
                 })
                 continue
+            
+            
             match message:          
                 case TextMessage():
                     await handle_text(websocket, message, user_id)
@@ -102,9 +76,8 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                 case TimeMessage():
                     await handle_time(websocket, message, user_id)
 
-                # case UIActionMessage():
-                #     print(f"Received UI action: {message.action} on {message.target}")
-                #     await websocket.send_json({"type": "ui_action", "status": "ok"})
+                case RawMessage():
+                    await handle_raw_mode(websocket, message, user_id)
                 
                 case OrchestrateMessage():
                     await handle_orchestration(websocket, message, user_id)

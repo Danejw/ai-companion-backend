@@ -11,7 +11,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context, get_context_key, update_context
 from app.websockets.orchestrate_contextual import build_contextual_prompt, orchestration_websocket
-from app.websockets.schemas.messages import OrchestrateMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage
+from app.websockets.schemas.messages import OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage
 
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -98,7 +98,9 @@ async def handle_ui_action(websocket: WebSocket, message: str):
         response_dict = ui_action.model_dump()
         await websocket.send_json(response_dict)
     
-
+async def handle_raw_mode(websocket: WebSocket, message: RawMessage, user_id: str):
+    await websocket.send_json({"type": "raw_action", "status": "ok"})
+    update_context(user_id, "raw_mode", message.is_raw)
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})

@@ -48,6 +48,10 @@ class UIActionMessage(BaseModel):
     target: str
     params: Optional[Dict[str, str]]
     
+class RawMessage(BaseModel):
+    type: Literal["raw_mode"]
+    is_raw: bool
+    
 # ORCHESTRATE
 class OrchestrateMessage(BaseModel):
     type: Literal["orchestrate"]
@@ -56,4 +60,4 @@ class OrchestrateMessage(BaseModel):
     summarize: Optional[int] = 10
 
 # UNIFIED MESSAGE TYPE
-Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, OrchestrateMessage]
+Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, RawMessage, OrchestrateMessage]

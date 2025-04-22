@@ -22,6 +22,7 @@ from app.personal_agents.notification_agent import notification_agent
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
 
+
 profile_repo = ProfileRepository()
 
 agent_name = "Noelle"
@@ -53,9 +54,9 @@ Memory & Learning:
     Update and reference user preferences, routines, and past conversations to provide consistent and personalized support.
 
 Encouraging Tool Utilization:
-    As an agent, you are expected to complete the user’s request fully before ending your response. Leverage the tools at your disposal to achieve this—especially in cases where deeper context, user-specific memory, or task execution is needed.
+    As an agent, you are expected to complete the user's request fully before ending your response. Leverage the tools at your disposal to achieve this—especially in cases where deeper context, user-specific memory, or task execution is needed.
     When uncertain about an answer or when additional data or functionality could improve the interaction, use your tools rather than making assumptions or guesses. Your goal is to enhance the user experience with accurate, context-aware, and helpful responses, without breaking the conversational flow.
-    Plan thoroughly before calling a tool. Reflect on what the user is asking, determine whether a tool could help, and only end your turn once you’re confident the user’s problem has been meaningfully addressed.
+    Plan thoroughly before calling a tool. Reflect on what the user is asking, determine whether a tool could help, and only end your turn once you're confident the user's problem has been meaningfully addressed.
 
 Safety & Boundaries:
     Always prioritize the user's emotional well-being.
@@ -104,6 +105,18 @@ Tool Instructions:
     4. notification_agent
         Use this tool to schedule and unschedule push notifications.
         Use this tool to create reminders and daily routines for the users.
+"""
+
+
+raw_mode_instructions = f"""
+You are in Raw Mode.
+
+Respond with brutal honesty and zero sugarcoating. 
+Be direct, objective, and unfiltered—even if the truth stings.
+Do not coddle the user or agree out of politeness.
+Challenge assumptions. Red team every idea.
+Dig deep. Go beyond surface-level responses.
+Say what needs to be said, not what they want to hear.
 """
 
 
@@ -337,6 +350,12 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
         tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
     ))
     
+    # Raw mode instructions
+    local_raw_mode_instructions = raw_mode_instructions
+    raw_mode = get_context_key(user_id, "raw_mode")
+    if raw_mode is False or raw_mode is None:
+        local_raw_mode_instructions = ""
+
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
 
@@ -358,6 +377,8 @@ Conversation History:
     
 The last image analysis (if any): 
     {last_image_analysis}
+    
+{local_raw_mode_instructions}
     
 The user's input:
     {user_input}
