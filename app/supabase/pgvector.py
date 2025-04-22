@@ -85,9 +85,11 @@ def store_user_slang(user_id: str, slang_text: str, metadata: dict):
     
     if existing.data:
         new_count = existing.data[0]["mention_count"] + 1
-        supabase.table("user_slang").update({"metadata": json.dumps(metadata), "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
+        response = supabase.table("user_slang").update({"metadata": json.dumps(metadata), "last_updated": "now()", "mention_count": new_count}).eq("id", existing.data[0]["id"]).execute()
     else:
-        supabase.table("user_slang").insert({"user_id": user_id, "slang_text": slang_text, "embedding": embedding, "metadata": json.dumps(metadata), "mention_count": 1}).execute()
+        response = supabase.table("user_slang").insert({"user_id": user_id, "slang_text": slang_text, "embedding": embedding, "metadata": json.dumps(metadata), "mention_count": 1}).execute()
+
+    return response.data
 
 def find_similar_slang(user_id: str, query: str, top_k=5):
     """

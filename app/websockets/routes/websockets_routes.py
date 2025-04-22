@@ -46,9 +46,7 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
     try:
         while True:
             raw = await websocket.receive_json()
-            
-            print("New Message: ", raw)
-            
+                        
             try:
                 message = message_adapter.validate_python(raw)
             except ValidationError as ve:

@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 import os
-from typing import List, Optional
+from typing import List, Optional, cast
 from agents import Agent, Runner
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
@@ -97,18 +97,18 @@ class MemoryExtractionService:
     async def extract_memory(self, message: str) -> Optional[MemoryMetadata]:
         try:
             memory_result = await Runner.run(self.agent, message)
-           
-            result = MemoryMetadata(**memory_result.final_output.dict())
-                                  
-            # if result.importance < 0.3:
-            #     logging.info("Extracted memory is not valuable enough to store.")
-            #     return None
+            
+            memory: MemoryMetadata = cast(MemoryMetadata, memory_result.final_output)
+                                                                         
+            if memory.importance < 0.3:
+                logging.info("Extracted memory is not valuable enough to store.")
+                return None
 
-            result.timestamp = self.get_timestamp().isoformat()
+            memory.timestamp = self.get_timestamp().isoformat()
             
-            await run_in_threadpool(lambda: self.store_memory(result))
+            await run_in_threadpool(lambda: self.store_memory(memory))
             
-            return result
+            return memory
         
         except Exception as e:
             logging.error(f"Error extracting memory: {e}")
@@ -124,9 +124,11 @@ class MemoryExtractionService:
                         
             # Convert MemoryVector to dictionary for JSON serialization
             memory_dict = memory.model_dump()     
-       
+                   
             # Check if knowledge already exists to prevent duplicates
             existing = supabase.table("user_knowledge").select("*").eq("user_id", self.user_id).eq("knowledge_text", memory.text).execute()
+            
+            print("Existing: ", existing)
 
             if existing.data:
                 # Increase mention count and update timestamp
@@ -137,7 +139,7 @@ class MemoryExtractionService:
                 response = supabase.table("user_knowledge").insert({"user_id": self.user_id, "knowledge_text": memory.text, "embedding": text_vectors, "metadata": memory_dict, "mention_count": 1}).execute()
                 
             # Edge creation
-            new_id = response.data[0]["id"]
+            new_id = response.data[0]["id"]            
             create_knowledge_edges(self.user_id, new_id, text_vectors, memory_dict)
             return True
         

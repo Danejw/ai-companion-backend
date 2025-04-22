@@ -1,7 +1,6 @@
 # app/websocket_handlers/text_handler.py
 import asyncio
 import base64
-from io import BytesIO
 import os
 from agents import Agent, RunResultStreaming, Runner
 from fastapi import WebSocket
@@ -9,9 +8,15 @@ from openai import AsyncOpenAI
 from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
 from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
-from app.websockets.context.store import get_context, get_context_key, update_context
-from app.websockets.orchestrate_contextual import build_contextual_prompt, orchestration_websocket
+from app.websockets.context.store import get_context_key, update_context
+from app.websockets.orchestrate_contextual import orchestration_websocket
 from app.websockets.schemas.messages import OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage
+
+
+from app.function.memory_extraction import MemoryExtractionService
+from app.personal_agents.slang_extraction import SlangExtractionService
+from app.psychology.mbti_analysis import MBTIAnalysisService
+from app.psychology.ocean_analysis import OceanAnalysisService
 
 
 openai_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -225,8 +230,35 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     profile_repo.deduct_credits(user_id, credits_cost)
     
     # replace history with summary if the history is longer than the summarize value
-    if len(history) > summarize:
-        asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))
+    if len(history) > 2:
+        asyncio.create_task(replace_conversation_history_with_summary(user_id))
+        
+        if extract:        
+            # get all message from history that match the user_id
+            history_string = [msg for msg in history if msg.user_id == user_id]
+        
+            # Convert the history to a string
+            history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history_string])
+            
+            # Extract knowledge from the history.
+            extraction = MemoryExtractionService(user_id)
+            extract_task = asyncio.create_task(extraction.extract_memory(history_string))
+            await extract_task
+
+            # Run MBTI analysis
+            mbti_service = MBTIAnalysisService(user_id)
+            mbti_task = asyncio.create_task(mbti_service.analyze_message(history_string))
+            await mbti_task
+
+            # Run OCEAN analysis
+            ocean_service = OceanAnalysisService(user_id)
+            ocean_task = asyncio.create_task(ocean_service.analyze_message(history_string))
+            await ocean_task
+                    
+            # Run SLANG analysis
+            slang_service = SlangExtractionService(user_id)
+            slang_task = asyncio.create_task(slang_service.extract_slang(history_string))
+            await slang_task
     
     
     # costs = f"""
@@ -234,7 +266,3 @@ async def process_history(user_id: str, history: list[Message], summarize: int =
     # Credits Cost: {credits_cost}
     # """
     #logging.info(f"Costs: {costs}")
-
-    # replace history with summary
-    if len(history) >= summarize:
-        asyncio.create_task(replace_conversation_history_with_summary(user_id, extract))

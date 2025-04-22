@@ -7,11 +7,6 @@ import logging
 from typing import Optional
 
 from pydantic import BaseModel
-from app.function.memory_extraction import MemoryExtractionService
-from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
-from app.personal_agents.slang_extraction import SlangExtractionService
-from app.psychology.mbti_analysis import MBTIAnalysisService
-from app.psychology.ocean_analysis import OceanAnalysisService
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from agents import Agent, Runner
@@ -125,7 +120,7 @@ def clear_conversation_history(user_id: str) -> bool:
         logging.error(f"Error clearing conversation history for user {user_id}: {e}")
         return False
 
-async def replace_conversation_history_with_summary(user_id: str, extract: bool = True) -> list[Message]:
+async def replace_conversation_history_with_summary(user_id: str) -> list[Message]:
     """
     Extracts knowledge from the conversation history, runs MBTI and OCEAN analyses
     Replaces the conversation history with a summary.
@@ -139,27 +134,6 @@ async def replace_conversation_history_with_summary(user_id: str, extract: bool 
         
         # Convert the history to a string
         history_string = "\n".join([f"{msg.role}: {msg.content}" for msg in history_string])
-
-        if extract:
-            # Extract knowledge from the history.
-            extraction = MemoryExtractionService(user_id)
-            extract_task = asyncio.create_task(extraction.extract_memory(history_string))
-            await extract_task
-
-            # Run MBTI analysis
-            mbti_service = MBTIAnalysisService(user_id)
-            mbti_task = asyncio.create_task(mbti_service.analyze_message(history_string))
-            await mbti_task
-
-            # Run OCEAN analysis
-            ocean_service = OceanAnalysisService(user_id)
-            ocean_task = asyncio.create_task(ocean_service.analyze_message(history_string))
-            await ocean_task
-                    
-            # Run SLANG analysis
-            slang_service = SlangExtractionService(user_id)
-            slang_task = asyncio.create_task(slang_service.extract_slang(history_string))
-            await slang_task
     
         # Define instructions for the summarization agent.
         instructions = (

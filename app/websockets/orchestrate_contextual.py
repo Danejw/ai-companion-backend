@@ -307,7 +307,8 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
             await websocket.send_json({"type": "orchestration", "status": "recalling memories"})
             
             similar_memories = memory_service.vector_search(user_input, limit=1)
-            memory_string = similar_memories[0]['knowledge_text']
+            if similar_memories and len(similar_memories) > 0:
+                memory_string = similar_memories[0]['knowledge_text']
             
             if similar_memories and len(similar_memories) > 0:
             

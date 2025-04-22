@@ -1,6 +1,6 @@
 from datetime import datetime
 import logging
-from typing import List, Optional
+from typing import List, Optional, cast
 from agents import Agent, Runner
 from app.supabase.pgvector import find_similar_knowledge, find_similar_slang, store_user_slang
 from pydantic import BaseModel
@@ -34,7 +34,19 @@ class SlangRetrieval(BaseModel):
         }
 
     @classmethod
-    def from_raw_data(cls, data: dict):
+    def from_raw_data(cls, data):
+        # Handle case where data is a string
+        if isinstance(data, str):
+            import json
+            try:
+                data = json.loads(data)
+            except:
+                # If it can't be parsed as JSON, create a simple structure
+                return cls(id="unknown", slang_text=data, metadata=SlangMetadata(
+                    score=SlangScore(value_score=0.5, reason="Imported slang"),
+                    topics=[], timestamp=datetime.now().isoformat()
+                ), similarity=0.0)
+                
         # Convert the metadata string to dict if it's a string
         if isinstance(data.get('metadata'), str):
             import json
@@ -67,8 +79,8 @@ class SlangExtractionService:
     async def extract_slang(self, message: str) -> Optional[SlangResult]:
         try:
             slang_result = await Runner.run(self.extraction_agent, message)
-            result = SlangResult(**slang_result.final_output.dict())
-            
+            result : SlangResult = cast(SlangResult, slang_result.final_output)
+                        
             logging.info(f"Extracted slang: {result}")
             
             if result.metadata.score.value_score < 0.3:
@@ -87,17 +99,27 @@ class SlangExtractionService:
         """
         Store extracted slang in the vector store using a similar function to your knowledge extraction.
         """
-        store_user_slang(self.user_id, slang.slang_text, slang.metadata.dict())
+        store_user_slang(self.user_id, slang.slang_text, slang.metadata.model_dump())
 
     def retrieve_similar_slang(self, query: str, top_k: int = 2) -> List[SlangRetrieval]:
         """
         Retrieve stored slang that is similar to the given query.
         """
-        slangs = find_similar_slang(self.user_id, query, top_k)
-        return [SlangRetrieval.from_raw_data(slang) for slang in slangs]
+        try:
+            slangs = find_similar_slang(self.user_id, query, top_k)
+            
+            if slangs and len(slangs) > 0:
+                return [SlangRetrieval.from_raw_data(slang) for slang in slangs]
+        except Exception as e:
+            logging.error(f"Error retrieving slang: {e}")
+        
+        return []
 
     # TODO: Add a pretty print function for the slang results
     def pretty_print_slang_result(self, slangs: List[SlangRetrieval]) -> str:
+        if not slangs:
+            return "No slang patterns found."
+            
         formatted_slangs = ""
         for slang in slangs:
             formatted_slangs += f"""
