@@ -14,7 +14,7 @@ from app.supabase.conversation_history import append_message_to_history
 from app.supabase.knowledge_edges import get_connected_memories, pretty_print_memories
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
-from app.websockets.context.store import get_context, get_context_key, update_context
+from app.websockets.context.store import delete_context_key, get_context, get_context_key, update_context
 from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 from app.personal_agents.notification_agent import notification_agent
@@ -341,11 +341,12 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
         tpb = "Unconfident in the behavior analysis of the user"
 
 
-    memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
     
+    # Get the last image analysis
     last_image_analysis = get_context_key(user_id, "last_image_analysis")
      
-
+    # Setup the memory tools
+    memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
     noelle_agent.tools.append(memory_agents.agent.as_tool(
         tool_name="memory_search",
         tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
@@ -356,6 +357,24 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
     raw_mode = get_context_key(user_id, "raw_mode")
     if raw_mode is False or raw_mode is None:
         local_raw_mode_instructions = ""
+        
+    # Get the feedback type
+    feedback_type = get_context_key(user_id, "feedback")
+    if feedback_type is not None:
+        if feedback_type:
+            feedback_prompt = f"""
+Feedback:
+    The user liked your last message
+            """
+        else:
+            feedback_prompt = f"""
+Feedback:
+    The user disliked your last message
+            """
+    else:
+        feedback_prompt = ""
+    delete_context_key(user_id, "feedback")
+
 
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
@@ -375,6 +394,8 @@ Fun Slang you can use:
  
 Conversation History:
     {history_string}
+    
+{feedback_prompt}
     
 The last image analysis (if any): 
     {last_image_analysis}

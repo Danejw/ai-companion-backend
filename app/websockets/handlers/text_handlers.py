@@ -10,7 +10,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context_key, update_context
 from app.websockets.orchestrate_contextual import orchestration_websocket
-from app.websockets.schemas.messages import OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage
+from app.websockets.schemas.messages import OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
 
 
 from app.function.memory_extraction import MemoryExtractionService
@@ -107,6 +107,10 @@ async def handle_raw_mode(websocket: WebSocket, message: RawMessage, user_id: st
     await websocket.send_json({"type": "raw_action", "status": "ok"})
     update_context(user_id, "raw_mode", message.is_raw)
 
+async def handle_feedback(websocket: WebSocket, message: FeedbackMessage, user_id: str):
+    await websocket.send_json({"type": "feedback", "status": "ok"})
+    update_context(user_id, "feedback", message.feedback_type)
+
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})
     
@@ -141,7 +145,7 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
                 })
 
             elif event.item.type == "message_output_item":
-                print("AI Response: ", event.item.raw_item.content[0].text)
+                #print("AI Response: ", event.item.raw_item.content[0].text)
                 await websocket.send_json({
                     "type": "ai_response",
                     "text":  event.item.raw_item.content[0].text

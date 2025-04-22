@@ -24,8 +24,9 @@ def delete_context(user_id: str) -> None:
         
 def delete_context_key(user_id: str, key: str) -> None:
     with store_lock:
-        if user_id in user_context_store and key in user_context_store[user_id]:
-            del user_context_store(user_id, {})[key]
+        user_data = user_context_store.get(user_id)
+        if user_data and key in user_data:
+            del user_data[key]
 
 def dump_context(user_id: str) -> Dict[str, Any]:
     with store_lock:
