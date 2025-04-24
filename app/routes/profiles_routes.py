@@ -2,10 +2,18 @@ from fastapi import APIRouter, HTTPException, status
 from app.supabase.profiles import ProfileRepository
 from app.auth import verify_token
 from fastapi.params import Depends
-
+from pydantic import BaseModel
 
 # Initialize the router
 router = APIRouter()
+
+
+class PasswordResetRequest(BaseModel):
+    email: str
+    
+class UpdatePasswordRequest(BaseModel):
+    new_password: str
+    token: str
 
 
 @router.get("/credits")
@@ -28,11 +36,11 @@ async def get_user_credits_route(user_id=Depends(verify_token)):
 
 
 @router.get("/profile")
-async def get_user_profile_route(user_id=str): #=Depends(verify_token)):
+async def get_user_profile_route(user_id=Depends(verify_token)):
     """
     Retrieves the profile for a specific user.
     """
-    #user_id = user_id["id"]
+    user_id = user_id["id"]
     repo = ProfileRepository()
     profile = repo.get_profile(user_id)
     if profile is None:
@@ -41,3 +49,55 @@ async def get_user_profile_route(user_id=str): #=Depends(verify_token)):
             detail=f"Could not find profile for user with id {user_id}"
         )
     return profile
+
+@router.delete("/delete_account")
+async def delete_user_account_route(user_id=Depends(verify_token)):
+    """
+    Deletes the user account from the profile record in Supabase.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.complete_account_deletion(user_id)
+    return results
+
+
+@router.post("/send_password_reset")
+async def send_password_reset_route(password_reset_request: PasswordResetRequest):
+    """
+    Sends a password reset email to the user.
+    """
+    repo = ProfileRepository()
+    results = repo.send_password_reset(password_reset_request.email)
+    return results
+
+@router.post("/change_password")
+async def update_password(request: UpdatePasswordRequest):
+    """
+    Updates a user's password.
+    
+    This endpoint can be used in two scenarios:
+    1. After password reset (using token)
+    2. When user is logged in and wants to change password
+    
+    Request body should contain:
+    - new_password: The new password to set
+    - Either user_id or token depending on the scenario
+    """
+    try:
+        profile_repo = ProfileRepository()
+        
+        # Check if this is a reset flow (with token) or regular update
+        if request.token:
+            # For password reset flow, exchange token for user ID
+            auth_response = profile_repo.supabase.auth.get_user(request.token)
+            user_id = auth_response.user.id
+            
+        # Update the password
+        result = profile_repo.update_user_password(user_id, request.new_password)
+        return result
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error updating password: {e}"
+        }

@@ -39,7 +39,6 @@ async def handle_audio(websocket: WebSocket, message: AudioMessage, user_id: str
     update_context(user_id, "last_message", user_transcript)
     
 
-# TODO: handle everything below this
 async def handle_image(websocket: WebSocket, message: ImageMessage, user_id: str):
     await websocket.send_json({"type": "image_action", "status": "image ok"})
     await websocket.send_json({"type": "info", "text": "Analyzing image..."})
@@ -104,15 +103,15 @@ async def handle_ui_action(websocket: WebSocket, message: str):
         await websocket.send_json(response_dict)
     
 async def handle_raw_mode(websocket: WebSocket, message: RawMessage, user_id: str):
-    await websocket.send_json({"type": "raw_action", "status": "ok"})
+    await websocket.send_json({"type": "raw_action", "status": "Raw Mode ok"})
     update_context(user_id, "raw_mode", message.is_raw)
 
 async def handle_feedback(websocket: WebSocket, message: FeedbackMessage, user_id: str):
-    await websocket.send_json({"type": "feedback", "status": "ok"})
+    await websocket.send_json({"type": "feedback_action", "status": "Feedback ok"})
     update_context(user_id, "feedback", message.feedback_type)
 
 async def handle_local_lingo(websocket: WebSocket, message: LocalLingoMessage, user_id: str):
-    await websocket.send_json({"type": "local_lingo", "status": "ok"})
+    await websocket.send_json({"type": "local_lingo_action", "status": "Local Lingo ok"})
     update_context(user_id, "local_lingo", message.local_lingo)
     
 

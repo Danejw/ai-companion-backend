@@ -94,48 +94,7 @@ class ProfileRepository:
         except Exception as e:
             logging.error(f"Error updating name for user_id: {user_id}: {e}")
             return "Error updating name"
-        
-    def update_user_image(self, user_id: str, image: str) -> bool:
-        """
-        Updates the image of the user in the profile record in Supabase.
-        Returns True if update was successful, False otherwise.
-        """
-        try:
-            response = self.supabase.table(self.table_name).update({"image": image}).eq("id", user_id).execute()
-            return True
-        except Exception as e:
-            logging.error(f"Error updating image for user_id: {user_id}: {e}")
-            return False
-
-    def get_user_subscription(self, user_id: str) -> Optional[str]:
-        """
-        Retrieves the subscription from the profile record in Supabase.
-        Returns the subscription or None if no record is found.
-        """
-        try:
-            response = self.supabase.table(self.table_name).select("subscription").eq("id", user_id).execute()
-            data = response.data
-            if data and len(data) > 0:
-                return data[0]["subscription"]
-            else:
-                logging.info(f"No profile record found for user_id: {user_id}")
-                return None
-        except Exception as e:
-            logging.error(f"Error fetching subscription for user_id: {user_id}: {e}")
-            return None
-        
-    def update_user_subscription(self, user_id: str, subscription: str) -> bool:
-        """
-        Updates the subscription of the user in the profile record in Supabase.
-        Returns True if update was successful, False otherwise.
-        """
-        try:
-            response = self.supabase.table(self.table_name).update({"subscription": subscription}).eq("id", user_id).execute()
-            return True
-        except Exception as e:
-            logging.error(f"Error updating subscription for user_id: {user_id}: {e}")
-            return False
-        
+           
     def get_user_credit(self, user_id: str) -> Optional[int]:
         """         
         Retrieves the credit from the profile record in Supabase.
@@ -331,10 +290,128 @@ class ProfileRepository:
             logging.error(f"Error updating gender for user_id: {user_id}: {e}")
             return False
 
+    def complete_account_deletion(self, user_id: str) -> dict:
+        """
+        Completely deletes a user account from Supabase following best practices:
+        1. Check for and handle storage objects
+        2. Revoke all active sessions
+        3. Delete auth record (which cascades to all related tables)
+        
+        Returns status information about the deletion process.
+        """
+        results = {
+            "success": True,
+            "storage_cleared": False,
+            "sessions_revoked": False,
+            "auth_deleted": False,
+            "message": ""
+        }
+        
+        try:
+            # Step 1: Check for storage objects owned by the user
+            # TODO: Implement this when we use storage
+            # try:
+            #     # List storage objects owned by user
+            #     storage_objects = self.supabase.storage.from_('your-bucket-name').list(user_id)
+                
+            #     # If objects exist, delete them or handle accordingly
+            #     if storage_objects and len(storage_objects) > 0:
+            #         for obj in storage_objects:
+            #             self.supabase.storage.from_('your-bucket-name').remove([f"{user_id}/{obj['name']}"])
+                
+            #     results["storage_cleared"] = True
+            # except Exception as e:
+            #     logging.warning(f"Error handling storage objects for user {user_id}: {e}")
+            
+            # Step 2: Revoke all active sessions
+            try:
+                # Update all sessions to be revoked
+                self.supabase.rpc(
+                    "revoke_sessions_for_user",
+                    {"input_user_id": user_id}
+                ).execute()
+                results["sessions_revoked"] = True
+            except Exception as e:
+                logging.warning(f"Failed to revoke sessions for user {user_id}: {e}")
+            
+            # Step 3: Delete auth record using admin API
+            # This will cascade to profiles and all other tables with CASCADE constraints
+            auth_deleted = self.supabase.auth.admin.delete_user(user_id)
+            results["auth_deleted"] = True
+            
+            results["message"] = "User account completely deleted"
+            return results
+            
+        except Exception as e:
+            error_msg = f"Error during complete account deletion for user_id {user_id}: {e}"
+            logging.error(error_msg)
+            results["success"] = False
+            results["message"] = error_msg
+            return results
 
+    def send_password_reset(self, email: str) -> dict:
+        """
+        Sends a password reset email to the user.
+        Returns a dictionary with the status of the operation.
+        
+        This uses the Supabase Auth API to send a magic link for password reset.
+        """
+        try:
+            # Send password reset email
+            response = self.supabase.auth.reset_password_for_email(
+                email, 
+                options={
+                    # Optionally specify a redirect URL where user will land after clicking the link
+                    # This URL needs to be added to your allowed redirect URLs in Supabase dashboard
+                    "redirect_to": "http://localhost:3000/reset-password"
+                }
+            )
+            
+            return {
+                "success": True,
+                "message": "Password reset email sent successfully"
+            }
+        except Exception as e:
+            error_msg = f"Error sending password reset email to {email}: {e}"
+            return {
+                "success": False,
+                "message": error_msg
+            }
 
-
-
+    def update_user_password(self, user_id: str, new_password: str) -> dict:
+        """
+        Updates a user's password in Supabase Auth.
+        
+        This method should be called by an authenticated endpoint after
+        verifying the user's identity (either after reset flow or when
+        user wants to change password while logged in).
+        
+        Args:
+            user_id: The ID of the user whose password to update
+            new_password: The new password to set
+            
+        Returns:
+            Dictionary with success status and message
+        """
+        try:
+            # Update the user's password using admin API
+            response = self.supabase.auth.admin.update_user_by_id(
+                user_id,
+                {"password": new_password}
+            )
+            
+            logging.info(f"Password updated successfully for user: {user_id}")
+            return {
+                "success": True,
+                "message": "Password updated successfully"
+            }
+        except Exception as e:
+            error_msg = f"Error updating password for user {user_id}: {e}"
+            logging.error(error_msg)
+            return {
+                "success": False,
+                "message": error_msg
+            }
 
 
 
