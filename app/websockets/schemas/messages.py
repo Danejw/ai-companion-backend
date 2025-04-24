@@ -47,11 +47,18 @@ class UIActionMessage(BaseModel):
     action: str
     target: str
     params: Optional[Dict[str, str]]
-    
+
+# RAW MODE
 class RawMessage(BaseModel):
     type: Literal["raw_mode"]
     is_raw: bool
-    
+
+# LOCAL LINGO
+class LocalLingoMessage(BaseModel):
+    type: Literal["local_lingo"]
+    local_lingo: bool
+
+# FEEDBACK
 class FeedbackMessage(BaseModel):
     type: Literal["feedback"]
     feedback_type: bool
@@ -64,4 +71,4 @@ class OrchestrateMessage(BaseModel):
     summarize: Optional[int] = 10
 
 # UNIFIED MESSAGE TYPE
-Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, RawMessage, FeedbackMessage, OrchestrateMessage]
+Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, RawMessage, LocalLingoMessage, FeedbackMessage, OrchestrateMessage]

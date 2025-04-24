@@ -10,7 +10,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context_key, update_context
 from app.websockets.orchestrate_contextual import orchestration_websocket
-from app.websockets.schemas.messages import OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
+from app.websockets.schemas.messages import LocalLingoMessage, OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
 
 
 from app.function.memory_extraction import MemoryExtractionService
@@ -110,6 +110,11 @@ async def handle_raw_mode(websocket: WebSocket, message: RawMessage, user_id: st
 async def handle_feedback(websocket: WebSocket, message: FeedbackMessage, user_id: str):
     await websocket.send_json({"type": "feedback", "status": "ok"})
     update_context(user_id, "feedback", message.feedback_type)
+
+async def handle_local_lingo(websocket: WebSocket, message: LocalLingoMessage, user_id: str):
+    await websocket.send_json({"type": "local_lingo", "status": "ok"})
+    update_context(user_id, "local_lingo", message.local_lingo)
+    
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})

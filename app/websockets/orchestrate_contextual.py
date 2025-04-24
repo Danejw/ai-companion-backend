@@ -376,6 +376,14 @@ Feedback:
     delete_context_key(user_id, "feedback")
 
 
+    local_lingo = get_context_key(user_id, "local_lingo")
+    if local_lingo:
+        local_lingo_instructions = f"""
+Use the location to adapt you responses to the local area with a slight local accent of that location.
+        """
+    else:
+        local_lingo_instructions = ""
+
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
 
@@ -384,7 +392,7 @@ The user's id is, use this for database operations: {user_id}
 The user's imformation:
     {await build_contextual_prompt(user_id)}  
     
-    Use the location to adapt you responses to the local area with a slight local accent of that location.
+    {local_lingo_instructions}
     
     
 {tool_instructions} 

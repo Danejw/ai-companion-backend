@@ -9,9 +9,9 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
-from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_orchestration, handle_raw_mode, handle_text, handle_time
+from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_local_lingo, handle_orchestration, handle_raw_mode, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, Message, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
+from app.websockets.schemas.messages import AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, Message, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
 from pydantic import TypeAdapter
 
 router = APIRouter()
@@ -72,6 +72,9 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
 
                 case RawMessage():
                     await handle_raw_mode(websocket, message, user_id)
+                
+                case LocalLingoMessage():
+                    await handle_local_lingo(websocket, message, user_id)
                     
                 case FeedbackMessage():
                     await handle_feedback(websocket, message, user_id)
