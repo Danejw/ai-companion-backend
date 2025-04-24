@@ -363,7 +363,7 @@ class ProfileRepository:
                 options={
                     # Optionally specify a redirect URL where user will land after clicking the link
                     # This URL needs to be added to your allowed redirect URLs in Supabase dashboard
-                    "redirect_to": "http://localhost:3000/reset-password"
+                    "redirect_to": "https://www.knolia.org/reset-password"
                 }
             )
             
