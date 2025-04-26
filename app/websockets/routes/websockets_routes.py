@@ -1,7 +1,5 @@
 import os
 from agents import Agent, ItemHelpers, Runner, function_tool
-from agents.voice import TTSModelSettings
-from pydantic import ValidationError
 from app.auth import verify_token_websocket
 from openai import AsyncOpenAI
 import base64
@@ -11,8 +9,8 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
 from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_local_lingo, handle_orchestration, handle_raw_mode, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, Message, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
-from pydantic import TypeAdapter
+from app.websockets.schemas.messages import AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
+from pydantic import TypeAdapter, ValidationError
 
 router = APIRouter()
 
@@ -81,6 +79,7 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                 
                 case OrchestrateMessage():
                     await handle_orchestration(websocket, message, user_id)
+                    
                 
     except WebSocketDisconnect:
         print(f"WebSocket disconnected for user {user_id}")

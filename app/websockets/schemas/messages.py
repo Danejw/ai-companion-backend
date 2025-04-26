@@ -62,7 +62,8 @@ class LocalLingoMessage(BaseModel):
 class FeedbackMessage(BaseModel):
     type: Literal["feedback"]
     feedback_type: bool
-    
+
+
 # ORCHESTRATE
 class OrchestrateMessage(BaseModel):
     type: Literal["orchestrate"]
