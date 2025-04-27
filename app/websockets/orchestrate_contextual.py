@@ -413,15 +413,17 @@ Use the location to adapt you responses to the local area with a slight local ac
         
     personality = get_context_key(user_id, "personality")
     if personality:
-        personality_instructions = get_personality_prompt(personality.empathy, personality.directness, personality.warmth, personality.challenge)
+        user_requested_personality = f"""
+User Requested Personality Instructions:
+    {get_personality_prompt(personality.empathy, personality.directness, personality.warmth, personality.challenge)}
+        """
     else:
-        personality_instructions = ""
+        user_requested_personality = ""
         
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
 
-User RequestedPersonality Instructions:
-{personality}
+{user_requested_personality}
 
 {personalized_instructions}
 
