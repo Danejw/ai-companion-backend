@@ -3,6 +3,7 @@ import asyncio
 import base64
 import os
 from agents import Agent, RunResultStreaming, Runner
+from app.personal_agents import multistep_agent
 from fastapi import WebSocket
 from pydantic import BaseModel
 from openai import AsyncOpenAI
@@ -11,7 +12,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context_key, update_context
 from app.websockets.orchestrate_contextual import orchestration_websocket
-from app.websockets.schemas.messages import LocalLingoMessage, MultistepMessage, OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
+from app.websockets.schemas.messages import LocalLingoMessage, OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
 
 
 from app.function.memory_extraction import MemoryExtractionService
@@ -120,7 +121,11 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
     
     user_input = get_context_key(user_id, "last_message")
     settings = get_context_key(user_id, "settings")
-        
+    
+    
+    # multistep_agent.service.user_id = user_id
+    # result : RunResultStreaming = Runner.run_streamed(multistep_agent.multistep_agent, user_input)
+    
     result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
     asyncio.create_task(handle_ui_action(websocket, message.user_input))
@@ -158,7 +163,7 @@ async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage
     final = result.final_output
     await websocket.send_json({"type": "ai_transcript", "text": final})
     await websocket.send_json({"type": "orchestration", "status": "done"})
-    
+        
     # TODO: change this to the actual agent name dynamically
     history = append_message_to_history(user_id, "Noelle", final)
 

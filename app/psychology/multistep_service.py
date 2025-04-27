@@ -1,6 +1,8 @@
 from typing import Literal, Optional, List
 from pydantic import BaseModel
-from agents import Agent, RunResult, Runner
+from agents import Agent, RunResultStreaming, Runner
+
+from app.websockets.context.store import delete_context_key, get_context_key, update_context
 
 
 class FlowStep(BaseModel):
@@ -50,6 +52,8 @@ multistep_judgement_agent = Agent(
     model="gpt-4o-mini",
     output_type=MultistepJudgement
 )
+
+
 
 
 #region Flows
@@ -218,9 +222,10 @@ flows: dict[str, Flow] = {
 #endregion
 
 class MultistepService:
-    def __init__(self):
+    def __init__(self, user_id: str = ""):
         self.agent = multistep_judgement_agent
         self.multistep : Optional[Multistep] = None
+        self.user_id = user_id
         
     def get_flow(self, flow_id: str) -> Flow:
         if flow_id in flows:
@@ -228,7 +233,7 @@ class MultistepService:
         else:
             raise ValueError(f"Flow {flow_id} not found")
 
-    def start_multistep(self, goal: Optional[str] = None, flow_id: Optional[str] = None) -> Multistep:
+    def start(self, goal: Optional[str] = None, flow_id: Optional[str] = None) -> Multistep:
         
         if flow_id is not None:
             flow = self.get_flow(flow_id)
@@ -253,6 +258,9 @@ class MultistepService:
             previous_steps=previous_steps
         )
 
+        update_context(self.user_id, "multistep", self.multistep)
+        
+        print(f"Multistep started: {self.multistep}")
         return self.multistep
 
     def update_prompt(self) -> str:
@@ -272,7 +280,7 @@ The user just replied: "{self.multistep.previous_steps[-1].content}".
 """
         return prompt
 
-    async def judge_input(self, user_input: str) -> MultistepJudgement:
+    async def judge(self, user_input: str) -> MultistepJudgement:
         if self.multistep is None:
             raise ValueError("Multistep flow not started.")
 
@@ -282,15 +290,19 @@ The user just replied: "{self.multistep.previous_steps[-1].content}".
         step_content = flow.steps[current_step_index].content
 
         prompt = f"""
-        We are currently in the {flow.id} flow, on step {current_step_index } of {len(flow.steps)} steps.
+        We are currently in the {self.multistep.flow_id} flow, on step {current_step_index } of {len(flow.steps)} steps.
+        
+        The previous messages are:
+        {self.multistep.previous_steps} 
         
         The user reponsed to "{step_content}" with:
+        
         "{user_input}"
         
         Should we advance to the next step or drill deeper?
         """
 
-        response: RunResult = await Runner.run(self.agent, prompt)
+        response: RunResultStreaming = await Runner.run(self.agent, prompt)
         
         judgement = response.final_output
 
@@ -299,11 +311,12 @@ The user just replied: "{self.multistep.previous_steps[-1].content}".
         self.multistep.reason = judgement.reason
         self.multistep.previous_steps.append(MultistepMessage(role="user", content=user_input))
 
-        self.step_through(judgement)
+        self.advance(judgement)
 
+        print(f"Multistep judged: {self.multistep}")
         return self.multistep
 
-    def step_through(self, judgement: MultistepJudgement) -> Multistep:
+    def advance(self, judgement: MultistepJudgement) -> Multistep:
         if judgement.advance:
             self.multistep.step_index += 1
         
@@ -312,21 +325,32 @@ The user just replied: "{self.multistep.previous_steps[-1].content}".
             if self.multistep.step_index < len(flow.steps):
                 self.multistep.content = flow.steps[self.multistep.step_index].content
             else:
-                self.finish_multistep()
+                self.finish()
         
         self.update_prompt()
-                
+        
+        update_context(self.user_id, "multistep", self.multistep)
+        
+        print(f"Multistep advanced: {self.multistep}")
         return self.multistep
 
-    def abort_multistep(self) -> Multistep:
+    def abort(self) -> Multistep:
         self.multistep.done = True
         self.multistep.content = f"Flow {self.multistep.flow_id} aborted."
+        
+        #update_context(self.user_id, "multistep", self.multistep)
+        delete_context_key(self.user_id, "multistep")
+        
+        print(f"Multistep aborted: {self.multistep}")
         return self.multistep
 
-    def finish_multistep(self) -> Multistep:
+    def finish(self) -> Multistep:
         self.multistep.done = True
         self.multistep.content = f"Flow {self.multistep.flow_id} completed."
         
+        update_context(self.user_id, "multistep", self.multistep)
+        
+        print(f"Multistep finished: {self.multistep}")
         # TODO: DO other things like extract knowledge from the flow
         return self.multistep
 

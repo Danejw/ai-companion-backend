@@ -4,7 +4,7 @@ import os
 from fastapi import WebSocket
 from app.function.memory_extraction import MemoryExtractionService
 from app.function.supabase_tools import clear_history, create_user_feedback, get_user_birthdate, get_user_gender, get_user_location, get_users_name, retrieve_personalized_info_about_user, update_user_birthdate, update_user_gender, update_user_location, update_user_name
-from app.personal_agents import memory_agents
+from app.personal_agents import memory_agents, multistep_agent
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.intent_classification import IntentClassificationService
 from app.psychology.mbti_analysis import MBTIAnalysisService
@@ -105,6 +105,10 @@ Tool Instructions:
     4. notification_agent
         Use this tool to schedule and unschedule push notifications.
         Use this tool to create reminders and daily routines for the users.
+        
+    5. multistep_agent
+        Use this tool to start or abort a multistep process.
+        Use this tool to send the intention of the user to the multistep agent with the context of the conversation.
 """
 
 
@@ -196,6 +200,11 @@ noelle_agent = Agent(
         notification_agent.as_tool(
             tool_name="notification_agent",
             tool_description="The notification agent can be used to schedule and unschedule push notifications."
+        ),
+        
+        multistep_agent.multistep_agent.as_tool(
+            tool_name="multistep_agent",
+            tool_description="The multistep agent can be used to start or abort a multistep process. It is smart to send the intention of the user to the multistep agent with the context of the conversation."
         )
     ],
     model_settings=ModelSettings(
@@ -287,6 +296,7 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
     memory_service = MemoryExtractionService(user_id)
     intent_service = IntentClassificationService(user_id)
     tpb_service = TheoryPlannedBehaviorService(user_id)
+    multistep_agent.service.user_id = user_id
     
     slang_result_pretty_print = slang_service.pretty_print_slang_result(slang_service.retrieve_similar_slang(user_input))
     
@@ -375,7 +385,7 @@ Feedback:
         feedback_prompt = ""
     delete_context_key(user_id, "feedback")
 
-
+    # Local Lingo
     local_lingo = get_context_key(user_id, "local_lingo")
     if local_lingo:
         local_lingo_instructions = f"""
@@ -383,7 +393,23 @@ Use the location to adapt you responses to the local area with a slight local ac
         """
     else:
         local_lingo_instructions = ""
-
+        
+        
+    # Multistep
+    multistep = get_context_key(user_id, "multistep")
+    print(f"Multistep Context: {multistep}")
+    if multistep:
+        await multistep_agent.service.judge(user_input)
+        multistep_instructions = f"""
+        You are in the middle of a multistep process.
+        The goal of this multistep process is: {multistep.goal}
+        {multistep.content}
+        Get the user to fullfill this reasoning to move to the next step: {multistep.reason}
+        """
+    else:
+        multistep_instructions = ""
+        
+        
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
 
@@ -409,6 +435,8 @@ The last image analysis (if any):
     {last_image_analysis}
     
 {local_raw_mode_instructions}
+
+{multistep_instructions}
     
 The user's input:
     {user_input}

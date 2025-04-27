@@ -9,7 +9,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
 from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_local_lingo, handle_orchestration, handle_raw_mode, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
+from app.websockets.schemas.messages import Message, AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, RawMessage, TextMessage, TimeMessage, OrchestrateMessage
 from pydantic import TypeAdapter, ValidationError
 
 router = APIRouter()
