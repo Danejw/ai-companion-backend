@@ -48,10 +48,13 @@ class UIActionMessage(BaseModel):
     target: str
     params: Optional[Dict[str, str]]
 
-# RAW MODE
-class RawMessage(BaseModel):
-    type: Literal["raw_mode"]
-    is_raw: bool
+# Personality Message
+class PersonalityMessage(BaseModel):
+    type: Literal["personality"]
+    empathy: int
+    directness: int
+    warmth: int
+    challenge: int
 
 # LOCAL LINGO
 class LocalLingoMessage(BaseModel):
@@ -72,4 +75,4 @@ class OrchestrateMessage(BaseModel):
     summarize: Optional[int] = 10
 
 # UNIFIED MESSAGE TYPE
-Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, RawMessage, LocalLingoMessage, FeedbackMessage, OrchestrateMessage]
+Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, PersonalityMessage, LocalLingoMessage, FeedbackMessage, OrchestrateMessage]

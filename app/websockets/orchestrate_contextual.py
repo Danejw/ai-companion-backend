@@ -1,6 +1,7 @@
 # app/orchestration/orchestrate_contextual.py
 import logging
 import os
+from app.function.personality_prompt import get_personality_prompt
 from fastapi import WebSocket
 from app.function.memory_extraction import MemoryExtractionService
 from app.function.supabase_tools import clear_history, create_user_feedback, get_user_birthdate, get_user_gender, get_user_location, get_users_name, retrieve_personalized_info_about_user, update_user_birthdate, update_user_gender, update_user_location, update_user_name
@@ -410,8 +411,17 @@ Use the location to adapt you responses to the local area with a slight local ac
         multistep_instructions = ""
         
         
+    personality = get_context_key(user_id, "personality")
+    if personality:
+        personality_instructions = get_personality_prompt(personality.empathy, personality.directness, personality.warmth, personality.challenge)
+    else:
+        personality_instructions = ""
+        
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
+
+User RequestedPersonality Instructions:
+{personality}
 
 {personalized_instructions}
 

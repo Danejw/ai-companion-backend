@@ -12,7 +12,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context_key, update_context
 from app.websockets.orchestrate_contextual import orchestration_websocket
-from app.websockets.schemas.messages import LocalLingoMessage, OrchestrateMessage, RawMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
+from app.websockets.schemas.messages import LocalLingoMessage, OrchestrateMessage, PersonalityMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
 
 
 from app.function.memory_extraction import MemoryExtractionService
@@ -104,9 +104,9 @@ async def handle_ui_action(websocket: WebSocket, message: str):
         response_dict = ui_action.model_dump()
         await websocket.send_json(response_dict)
     
-async def handle_raw_mode(websocket: WebSocket, message: RawMessage, user_id: str):
-    await websocket.send_json({"type": "raw_action", "status": "Raw Mode ok"})
-    update_context(user_id, "raw_mode", message.is_raw)
+async def handle_personality(websocket: WebSocket, message: PersonalityMessage, user_id: str):
+    await websocket.send_json({"type": "personality_action", "status": "Personality ok"})
+    update_context(user_id, "personality", message)
 
 async def handle_feedback(websocket: WebSocket, message: FeedbackMessage, user_id: str):
     await websocket.send_json({"type": "feedback_action", "status": "Feedback ok"})
