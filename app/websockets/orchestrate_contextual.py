@@ -374,12 +374,6 @@ Last Image Analysis:
         tool_description="Search your memories of the user for relevant information and context to make the conversation more meaningful."
     ))
     
-    # Raw mode instructions
-    local_raw_mode_instructions = raw_mode_instructions
-    raw_mode = get_context_key(user_id, "raw_mode")
-    if raw_mode is False or raw_mode is None:
-        local_raw_mode_instructions = ""
-        
     # Get the feedback type
     feedback_type = get_context_key(user_id, "feedback")
     if feedback_type is not None:
@@ -454,8 +448,7 @@ Conversation History:
 {feedback_prompt}
     
 {last_image_analysis}
-    
-{local_raw_mode_instructions}
+
 
 {multistep_instructions}
     
