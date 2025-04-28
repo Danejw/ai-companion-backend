@@ -23,7 +23,6 @@ from app.personal_agents.notification_agent import notification_agent
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
 
-
 profile_repo = ProfileRepository()
 
 agent_name = "Noelle"
@@ -43,7 +42,7 @@ Role & Purpose:
         Empathetic Engagement: Always respond with warmth and understanding. Recognize and validate the user's feelings, and offer support without judgment.
         Contextual Awareness: Utilize memory to recall past interactions, preferences, and routines. Weave this context naturally into conversations to make interactions feel personalized and genuine.
         Proactive Support: Gently check in with users, suggest helpful activities, and offer reminders that align with their well-being goals.
-        Seamless Tool Integration: When necessary, employ background tools (e.g., scheduling reminders, retrieving information) to enhance the conversation, ensuring the user experience remains smooth and uninterrupted.
+        Seamless Tool Integration: When necessary, employ background tools (e.g., scheduling reminders, retrieving information, making multistep plans) to enhance the conversation, ensuring the user experience remains smooth and uninterrupted.
 
 Interaction Style:
     Maintain a conversational and casual tone, akin to a close friend or confidant.
@@ -79,14 +78,12 @@ Your primary goal is to be a trusted companion, offering meaningful interactions
         DO NOT MENTION OPENAI IN YOUR RESPONSES.
 """
 
-
 tool_instructions = f"""
 
 Tool Instructions:
     TAKE THE INITIATIVE TO USE YOUR TOOLS
 
     You have access to specialized tools for assisting the user. When you detect an opportunity to improve or personalize the conversation, invoke the relevant tool with helpful context. Each tool is smart, so provide any details the user has shared.
-
 
     1. database_agent (make sure to provide the user_id when using this tool)
         Used to read or update user profile information.
@@ -108,10 +105,9 @@ Tool Instructions:
         Use this tool to create reminders and daily routines for the users.
         
     5. multistep_agent
-        Use this tool to start or abort a multistep process.
+        Proactively use this tool to start or abort a multistep process.
         Use this tool to send the intention of the user to the multistep agent with the context of the conversation.
 """
-
 
 raw_mode_instructions = f"""
 You are in Raw Mode.
@@ -300,6 +296,14 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
     multistep_agent.service.user_id = user_id
     
     slang_result_pretty_print = slang_service.pretty_print_slang_result(slang_service.retrieve_similar_slang(user_input))
+    if slang_result_pretty_print:
+        slang_result_pretty_print = f"""
+Fun Slang you can use:
+    {slang_result_pretty_print}
+        """
+    else:
+        slang_result_pretty_print = ""
+    
     
     history = append_message_to_history(user_id, "user", user_input)
     
@@ -355,6 +359,13 @@ async def orchestration_websocket( user_id: str, user_input: str, websocket: Web
     
     # Get the last image analysis
     last_image_analysis = get_context_key(user_id, "last_image_analysis")
+    if last_image_analysis:
+        last_image_analysis = f"""
+Last Image Analysis:
+    {last_image_analysis}
+        """
+    else:
+        last_image_analysis = ""
      
     # Setup the memory tools
     memory_agents.agent.tools = memory_agents.create_memory_tools(user_id)
@@ -398,14 +409,14 @@ Use the location to adapt you responses to the local area with a slight local ac
         
     # Multistep
     multistep = get_context_key(user_id, "multistep")
-    print(f"Multistep Context: {multistep}")
     if multistep:
         await multistep_agent.service.judge(user_input)
         multistep_instructions = f"""
-        You are in the middle of a multistep process.
-        The goal of this multistep process is: {multistep.goal}
-        {multistep.content}
-        Get the user to fullfill this reasoning to move to the next step: {multistep.reason}
+You are in the middle of a multistep process.
+    The goal of this multistep process is: {multistep.goal}
+    {multistep.content}
+        
+    Get the user to fullfill this reasoning to move to the next step: {multistep.reason}
         """
     else:
         multistep_instructions = ""
@@ -435,16 +446,14 @@ The user's imformation:
     
 {tool_instructions} 
 
-Fun Slang you can use:
-    {slang_result_pretty_print}
+{slang_result_pretty_print}
  
 Conversation History:
     {history_string}
     
 {feedback_prompt}
     
-The last image analysis (if any): 
-    {last_image_analysis}
+{last_image_analysis}
     
 {local_raw_mode_instructions}
 
