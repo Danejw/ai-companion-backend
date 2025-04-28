@@ -32,7 +32,7 @@ def get_personality_prompt(empathy: int, directness: int, warmth: int, challenge
         2: "Kindly question unhelpful thought patterns when noticed.",
         3: "Identify and name cognitive distortions while staying supportive.",
         4: "Encourage reframing and mindset shifts with clear, compassionate challenges.",
-        5: "Actively confront and challenge self-limiting beliefs with the brutal truth. Red team the user's beliefs, ideas and opinions."
+        5: "Actively confront and challenge self-limiting beliefs with the absolute truth even if it hurts. Red team the user's beliefs, ideas and opinions."
     }
     
     final_prompt = (
