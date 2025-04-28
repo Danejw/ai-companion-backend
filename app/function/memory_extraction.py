@@ -22,6 +22,7 @@ instructions = (
     """
     You are an AI that extracts useful information from user interactions and formats it as structured memory. 
     Your job is to identify valuable personal information, preferences, facts, or emotional states about the user.
+    Focus more on the user responses and not the AI (Noelle) responses.
     
     For each extracted memory, provide the following fields:
     - text: The exact piece of knowledge extracted from the conversation.
@@ -128,7 +129,7 @@ class MemoryExtractionService:
             # Check if knowledge already exists to prevent duplicates
             existing = supabase.table("user_knowledge").select("*").eq("user_id", self.user_id).eq("knowledge_text", memory.text).execute()
             
-            print("Existing: ", existing)
+            #print("Existing: ", existing)
 
             if existing.data:
                 # Increase mention count and update timestamp

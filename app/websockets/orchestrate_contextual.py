@@ -174,6 +174,17 @@ class MyHooks(AgentHooks[MyContext]):
     async def on_handoff(self, context, agent, source_agent):
         logging.info(f"{source_agent.name} handed off to {agent.name}")
 
+if "o3" in openai_model or "o4" in openai_model or "o1" in openai_model: # reasoning models are not temperature based
+    settings = ModelSettings(
+        parallel_tool_calls=True,
+    )
+else:
+    settings = ModelSettings(
+        parallel_tool_calls=True,
+        temperature=0.9,
+        top_p=0.95
+    )
+
 noelle_agent = Agent(
     name=agent_name,
     handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
@@ -204,11 +215,7 @@ noelle_agent = Agent(
             tool_description="The multistep agent can be used to start or abort a multistep process. It is smart to send the intention of the user to the multistep agent with the context of the conversation."
         )
     ],
-    model_settings=ModelSettings(
-        parallel_tool_calls=True,
-        temperature=0.9,
-        top_p=0.95
-    ),
+    model_settings=settings,
     #hooks=MyHooks(),
 )
 
@@ -419,8 +426,8 @@ You are in the middle of a multistep process.
     personality = get_context_key(user_id, "personality")
     if personality:
         user_requested_personality = f"""
-User Requested Personality Instructions:
-    {get_personality_prompt(personality.empathy, personality.directness, personality.warmth, personality.challenge)}
+The User has requested you to have response with the following personality traits:
+{get_personality_prompt(personality.empathy, personality.directness, personality.warmth, personality.challenge)}
         """
     else:
         user_requested_personality = ""
@@ -428,15 +435,12 @@ User Requested Personality Instructions:
     noelle_agent.instructions = f"""
 The user's id is, use this for database operations: {user_id}
 
-{user_requested_personality}
-
 {personalized_instructions}
 
 The user's imformation:
     {await build_contextual_prompt(user_id)}  
     
     {local_lingo_instructions}
-    
     
 {tool_instructions} 
 
@@ -449,8 +453,9 @@ Conversation History:
     
 {last_image_analysis}
 
-
 {multistep_instructions}
+
+{user_requested_personality}
     
 The user's input:
     {user_input}
