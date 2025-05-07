@@ -24,6 +24,8 @@ connect_server_url = (
     else production_url
 )
 
+print("Connect Server URL: ", connect_server_url)
+
 # Initialize the router
 router = APIRouter()
 

@@ -32,7 +32,7 @@ if ENV == "development":
     )
 else:
     ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
-    
+
     # Configure logging at the start of the file
     logging.basicConfig(
         level=logging.ERROR,
@@ -141,7 +141,7 @@ async def get_mbti(user_id: str = Depends(verify_token)):
     mbti_data = service.repository.get_mbti(user_id)
 
     if mbti_data:
-        return mbti_data.dict()
+        return mbti_data.model_dump()
     else:
         raise HTTPException(status_code=404, detail="No MBTI data found for this user")
     
@@ -152,7 +152,7 @@ async def get_ocean(user_id: str = Depends(verify_token)):
     ocean_data = service.repository.get_ocean(user_id)
 
     if ocean_data:
-        return ocean_data.dict()
+        return ocean_data.model_dump()
     else:
         raise HTTPException(status_code=404, detail="No OCEAN data found for this user")
 

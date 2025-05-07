@@ -19,7 +19,7 @@ class Phq4Questionaire(BaseModel):
     phq4_score: int = Field(..., ge=0, le=12)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class Phq4Repository:
