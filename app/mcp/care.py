@@ -1,6 +1,7 @@
-from agents.mcp import MCPServer
+from agents.mcp.server import MCPServerSse
 
-care_mcp = MCPServer(
+care_mcp = MCPServerSse(
     name="KnoliaCare",
-    params={"url": "http://localhost:8001/sse"}  # Replace with your actual care-server URL
+    params={"url": "http://localhost:8002/sse"}  # Replace with your actual care-server URL
 )
+

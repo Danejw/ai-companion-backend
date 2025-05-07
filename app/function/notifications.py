@@ -35,6 +35,7 @@ VAPID_CLAIMS = {"sub": "mailto:your_email@example.com"}
 load_dotenv(override=True)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_ANON_KEY")
+
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 

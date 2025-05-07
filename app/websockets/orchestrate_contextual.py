@@ -16,10 +16,11 @@ from app.supabase.knowledge_edges import get_connected_memories, pretty_print_me
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import delete_context_key, get_context, get_context_key, update_context
-from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool, RunnerContext
+from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 from app.personal_agents.notification_agent import notification_agent
-from app.mcp import care_mcp, connect_mcp
+from app.mcp.care import care_mcp
+from app.mcp.connect import connect_mcp
 
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
@@ -186,7 +187,6 @@ else:
         top_p=0.95
     )
 
-context = RunnerContext()
 
 noelle_agent = Agent(
     name=agent_name,
@@ -220,7 +220,6 @@ noelle_agent = Agent(
     ],
     model_settings=settings,
     mcp_servers=[care_mcp, connect_mcp],
-    context=context
     #hooks=MyHooks(),
 )
 

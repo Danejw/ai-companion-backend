@@ -2,7 +2,7 @@ import asyncio
 from enum import Enum
 from io import BytesIO
 import random
-from pydub import AudioSegment
+# from pydub import AudioSegment
 from fastapi import File, UploadFile
 import numpy as np
 from agents.voice import AudioInput, SingleAgentVoiceWorkflow, VoicePipeline, TTSModelSettings, VoicePipelineConfig
@@ -333,15 +333,15 @@ async def voice_assistant_client(agent: Agent, voice: Voices = Voices.ALLOY, aud
     # 7. Combine raw audio and convert to MP3 using pydub
     response_audio = np.concatenate(response_chunks, axis=0)
     pcm_bytes = response_audio.tobytes()
-    pcm_segment = AudioSegment(
-        data=pcm_bytes,
-        sample_width=2,
-        frame_rate=24000,
-        channels=1
-    )
+    # pcm_segment = AudioSegment(
+    #     data=pcm_bytes,
+    #     sample_width=2,
+    #     frame_rate=24000,
+    #     channels=1
+    # )
 
     mp3_io = BytesIO()
-    pcm_segment.export(mp3_io, format="mp3")
+    # pcm_segment.export(mp3_io, format="mp3")
     mp3_io.seek(0)
 
     return mp3_io

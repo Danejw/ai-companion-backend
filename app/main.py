@@ -7,6 +7,7 @@ from app.websockets.routes.websockets_routes import router as ws_router
 
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
+
 from app.stripe.stripe_config import STRIPE_CONFIG
 
 
@@ -79,6 +80,7 @@ from app.routes.orchestration_route import router as orchestration_router
 from app.websockets.routes.websockets_routes import router as websockets_router
 from app.routes.push_notification_routes import router as push_notifcation_router
 from app.routes.finetune_feedback_routes import router as finetune_feedback_router
+from app.routes.connect_routes import router as connect_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -101,6 +103,7 @@ app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchest
 app.include_router(websockets_router, prefix="/ws", tags=["Websockets"])
 app.include_router(push_notifcation_router, prefix="/push", tags=["Push Notifications"])
 app.include_router(finetune_feedback_router, prefix="/finetune", tags=["Finetune Feedback"])
+app.include_router(connect_router, prefix="/connect", tags=["Connect"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
