@@ -14,7 +14,15 @@ from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context
 
 # get connect server url from env
-connect_server_url = os.getenv("CONNECT_SERVER_URL")
+environment = os.getenv("ENV", "development")
+development_url = os.getenv("CONNECT_SERVER_URL_DEV")
+production_url = os.getenv("CONNECT_SERVER_URL_PROD")
+
+connect_server_url = (
+    development_url 
+    if environment == "development"
+    else production_url
+)
 
 # Initialize the router
 router = APIRouter()
