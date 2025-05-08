@@ -5,6 +5,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from jose import jwt, JWTError
 from app.utils.user_context import current_user_id
+import base64
+from typing import Optional
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -15,7 +17,14 @@ SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1/user"
 security = HTTPBearer()
 
 # Websocket
-SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET") # match whatever you use for generating tokens
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is not set")
+
+# If the key is base64 encoded, decode it
+if SECRET_KEY.startswith("base64:"):
+    SECRET_KEY = base64.b64decode(SECRET_KEY[7:])
+
 ALGORITHM = "HS256"  # or whatever you prefer
 
 
@@ -51,36 +60,34 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     return user_data  # Return the user details
 
 
-async def verify_token_websocket(websocket: WebSocket):
-    #await websocket.accept()
-    
-    token = websocket.query_params.get("token")
-    if not token:
-        # Policy violation: no token found
-        
-        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
-
+async def verify_token_websocket(token: str) -> Optional[dict]:
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience="authenticated")
-        user_id: str = payload.get("sub")
+        # Get Supabase JWT public key
+        jwks_url = "https://azcltjyvrttwdznrdfgab.supabase.co/auth/v1/jwks"
+        jwks = requests.get(jwks_url).json()
         
-        #await websocket.send_json({"type": "info", "text": "AUTHENTICATED"})
+        # Get the key ID from the token header
+        unverified_header = jwt.get_unverified_header(token)
+        key_id = unverified_header["kid"]
         
-        if user_id is None:
-            #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
-
-        # Store the user id in the context
-        current_user_id.set(user_id)
-
-        # If everything checks out, return the user_id
-        return user_id
-
-    except JWTError:
-        # Token is invalid or expired
-        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        # Find the matching public key
+        public_key = None
+        for key in jwks["keys"]:
+            if key["kid"] == key_id:
+                public_key = key
+                break
+                
+        if not public_key:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+            
+        # Verify the token using Supabase's public key
+        payload = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience="authenticated"
+        )
+        return payload
+        
+    except Exception as e:
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")

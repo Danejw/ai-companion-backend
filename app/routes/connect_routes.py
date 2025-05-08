@@ -13,6 +13,8 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context
 
+from app.mcp.mcp.memory.agent import memory_agent
+
 # get connect server url from env
 environment = os.getenv("ENV", "development")
 development_url = os.getenv("CONNECT_SERVER_URL_DEV")
@@ -74,6 +76,7 @@ async def generate_connect_profile(user_id: str = Depends(verify_token)) -> Conn
 
     print("User ID: ", user_id)
 
+
     # Initialize services
     profile_service = ProfileRepository()
     mbti_service = MBTIAnalysisService(user_id)
@@ -124,7 +127,7 @@ async def generate_connect_profile(user_id: str = Depends(verify_token)) -> Conn
     """
     
     print("About the User: ", about_the_user)
-
+    
     response = await Runner.run(starting_agent=profile_agent, input=about_the_user)
     results = response.final_output
 
