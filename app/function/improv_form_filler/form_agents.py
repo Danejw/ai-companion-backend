@@ -1,13 +1,14 @@
-from typing import Any
+from typing import Any, List
+from pydantic import BaseModel, ConfigDict
 from agents import Agent
 
-class ExtractedField:
+class ExtractedField(BaseModel):
     name: str
-    value: Any
+    value: str
 
-class ExtractionResults:
+class ExtractionResults(BaseModel):
     did_extract: bool
-    extracted_fields: list[ExtractedField]
+    extracted_fields: List[ExtractedField]
 
 extraction_agent = Agent(
     name="Extraction Agent",
@@ -34,9 +35,9 @@ You are the Storyteller guiding an interactive improv scene whose goal is to hel
   1. conversation_history: the entire chat so far (assistant + user messages).
   2. missing_fields: a list of field names that we still need to collect.
 
-Your task is to respond with **one** new story snippet that:
-  • Continues the narrative in a playful, immersive way.
-  • Embeds a question or challenge that will prompt the user to reveal *one* of the missing_fields.
+Your task is to respond with **one** short improv snippet that:
+  • Continues the improv in a playful, immersive way.
+  • Leave it open ended to prompt the user to reveal *one* of the missing_fields.
   • Should not ask for fields already collected, nor try to extract data yourself.
 
 Output only the story text for the next assistant message.

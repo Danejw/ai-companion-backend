@@ -6,7 +6,6 @@ import logging
 from jose import jwt, JWTError
 from app.utils.user_context import current_user_id
 import base64
-from typing import Optional
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -60,34 +59,36 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
     return user_data  # Return the user details
 
 
-async def verify_token_websocket(token: str) -> Optional[dict]:
+async def verify_token_websocket(websocket: WebSocket):
+    #await websocket.accept()
+    
+    token = websocket.query_params.get("token")
+    if not token:
+        # Policy violation: no token found
+        
+        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+
     try:
-        # Get Supabase JWT public key
-        jwks_url = "https://azcltjyvrttwdznrdfgab.supabase.co/auth/v1/jwks"
-        jwks = requests.get(jwks_url).json()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM], audience="authenticated")
+        user_id: str = payload.get("sub")
         
-        # Get the key ID from the token header
-        unverified_header = jwt.get_unverified_header(token)
-        key_id = unverified_header["kid"]
+        #await websocket.send_json({"type": "info", "text": "AUTHENTICATED"})
         
-        # Find the matching public key
-        public_key = None
-        for key in jwks["keys"]:
-            if key["kid"] == key_id:
-                public_key = key
-                break
-                
-        if not public_key:
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
-            
-        # Verify the token using Supabase's public key
-        payload = jwt.decode(
-            token,
-            public_key,
-            algorithms=["RS256"],
-            audience="authenticated"
-        )
-        return payload
-        
-    except Exception as e:
+        if user_id is None:
+            #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+
+        # Store the user id in the context
+        current_user_id.set(user_id)
+
+        # If everything checks out, return the user_id
+        return user_id
+
+    except JWTError:
+        # Token is invalid or expired
+        #await websocket.send_json({"type": "error", "text": "UNAUTHENTICATED"})
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
         raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")

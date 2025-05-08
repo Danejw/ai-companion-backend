@@ -2,10 +2,13 @@ from typing import Any
 from agents import Runner
 from app.function.improv_form_filler.form_context import FormContext
 from app.function.improv_form_filler.form_agents import extraction_agent, improv_agent
+from dataclasses import dataclass
 
+@dataclass
 class RequiredField:
     name: str
     type: type
+    description: str = ""
 
 
 class FormOrchestration:
@@ -48,13 +51,25 @@ class FormOrchestration:
 
         # if it does not return null and do nothing
         if not result.did_extract:
-            return
+            return result
         else:
             # if it does, fill in the field and remove it from the missing fields
             for extracted_field in result.extracted_fields:
-                if extracted_field.name in self.missing_fields:
-                    self.context.update_context(self.user_id, extracted_field.name, extracted_field.value)
-                    self.missing_fields.remove(extracted_field.name)
+                # Get existing extracted fields or initialize empty dict
+                current_fields = self.context.get_context_key(self.user_id, "extracted_fields") or {}
+                
+                # Add new field to the dict
+                current_fields[extracted_field.name] = extracted_field.value
+                
+                # Update context with all extracted fields
+                self.context.update_context(
+                    user_id=self.user_id,
+                    key="extracted_fields",
+                    value=current_fields
+                )
+                
+                # Remove the field from missing_fields
+                self.missing_fields = [field for field in self.missing_fields if field.name != extracted_field.name]
 
         # if there are no missing fields, return True
         if len(self.missing_fields) <= 0:
@@ -62,7 +77,7 @@ class FormOrchestration:
             return {"did_fill_all_fields": True}
         else:
             self.context.update_context(self.user_id, "did_fill_all_fields", False)
-            return {"did_fill_all_fields": False}
+            return result
         
     async def run_improv(self, input: str):
         # get did fill all fields
@@ -70,8 +85,15 @@ class FormOrchestration:
 
         prompt = ""
         if did_fill_all_fields is not None and did_fill_all_fields == True:
+
+            # get the user's responses
+            extracted_fields = self.context.get_context_key(self.user_id, "extracted_fields")
+
             prompt = f"""
             You have already filled all the fields. Complete and close out the improv session nicely. 
+
+            Summarize the user's responses into a short paragraph. (no improv fluff)
+            {extracted_fields}
             """
         else:
             prompt = f""" 

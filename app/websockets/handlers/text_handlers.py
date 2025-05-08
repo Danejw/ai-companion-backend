@@ -117,29 +117,30 @@ async def handle_local_lingo(websocket: WebSocket, message: LocalLingoMessage, u
     await websocket.send_json({"type": "local_lingo_action", "status": "Local Lingo ok"})
     update_context(user_id, "local_lingo", message.local_lingo)
 
-async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
-    pass
-    # await websocket.send_json({"type": "orchestration", "status": "processing"})
+
+required_fields = [
+    RequiredField(name="user name", description="The name of the user", type=str),
+    RequiredField(name="user age", description="The age of the user", type=int),
+    RequiredField(name="user gender", description="The gender of the user", type=str),
+]
+
+form_orchestration = FormOrchestration(required_fields)
+
+
+async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):    
+    await websocket.send_json({"type": "orchestration", "status": "processing"})
     
-    # user_input = get_context_key(user_id, "last_message")
+    user_input: str = get_context_key(user_id, "last_message")
 
+    data = await form_orchestration.extract_data(user_input)
 
-    # required_fields = [
-    #     RequiredField(name="date_ambiance", type=str),
-    #     RequiredField(name="music_preference", type=str),
-    #     RequiredField(name="activity_preference", type=str),
-    #     RequiredField(name="conversation_style", type=str),
-    #     RequiredField(name="favorite_food", type=str),
-    # ]
-    # form_orchestration = FormOrchestration(required_fields)
-    # await form_orchestration.extract_data(user_input)
-    # response = await form_orchestration.run_improv(user_input)
+    response = await form_orchestration.run_improv(user_input)
 
-    # await websocket.send_json({"type": "ai_transcript", "text": response})
+    await websocket.send_json({"type": "ai_response", "text": response})
 
 
     # settings = get_context_key(user_id, "settings")
-    
+
     
     # # multistep_agent.service.user_id = user_id
     # # result : RunResultStreaming = Runner.run_streamed(multistep_agent.multistep_agent, user_input)
