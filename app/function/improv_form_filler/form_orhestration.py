@@ -1,27 +1,9 @@
-from typing import Any, Optional
 from agents import Runner
 from app.function.improv_form_filler.form_context import FormContext
 from app.function.improv_form_filler.form_agents import extraction_agent, improv_agent
-from dataclasses import dataclass
+from app.function.improv_form_filler.form_types import ImprovForm, Message
 
-@dataclass
-class RequiredField:
-    name: str
-    type: type
-    description: str = ""
 
-@dataclass
-class ImprovForm:
-    name: str
-    required_fields: list[RequiredField]
-    theme: Optional[str] = None
-    intro: Optional[str] = None
-    outro: Optional[str] = None
-
-@dataclass
-class Message:
-    role: str
-    content: str
 
 class FormOrchestration:
     def __init__(self, improv_form: ImprovForm):

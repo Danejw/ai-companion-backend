@@ -1,4 +1,4 @@
-from app.function.improv_form_filler.form_orhestration import ImprovForm, RequiredField
+from app.function.improv_form_filler.form_types import ImprovForm, RequiredField
 
 
 connect_profile_form = ImprovForm(
