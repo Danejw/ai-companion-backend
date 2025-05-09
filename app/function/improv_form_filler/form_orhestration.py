@@ -12,6 +12,7 @@ class RequiredField:
 
 @dataclass
 class ImprovForm:
+    name: str
     required_fields: list[RequiredField]
     theme: Optional[str] = None
     intro: Optional[str] = None

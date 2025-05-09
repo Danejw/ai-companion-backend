@@ -118,18 +118,8 @@ async def handle_local_lingo(websocket: WebSocket, message: LocalLingoMessage, u
     update_context(user_id, "local_lingo", message.local_lingo)
 
 
-improv_form = ImprovForm(
-    theme="Romantic Relationship",
-    intro="Since you opted into connect, let's begin by getting to know you're preferences better. Lets play a improv, I'll make up a scenerio and you can riff on it.",
-    outro="Thanks for playing! Here's what I got from you: ",
-    required_fields=[
-        RequiredField(name="user name", description="The name of the user", type=str),
-        RequiredField(name="user age", description="The age of the user", type=int),
-        RequiredField(name="user gender", description="The gender of the user", type=str),
-    ]
-)
-
-form_orchestration = FormOrchestration(improv_form)
+from app.function.improv_form_filler.forms import connect_profile_form
+form_orchestration = FormOrchestration(connect_profile_form)
 
 
 async def handle_improv(websocket: WebSocket, user_id: str, message: ImprovMessage = None):
@@ -140,7 +130,6 @@ async def handle_improv(websocket: WebSocket, user_id: str, message: ImprovMessa
     
     update_context(user_id, "in_flow", True)
 
-    
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     await websocket.send_json({"type": "orchestration", "status": "processing"})
