@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import List, Optional
+from pydantic import BaseModel
 
 @dataclass
 class Message:
@@ -19,3 +20,11 @@ class ImprovForm:
     theme: Optional[str] = None
     intro: Optional[str] = None
     outro: Optional[str] = None
+
+class ExtractedField(BaseModel):
+    name: str
+    value: str
+
+class ExtractionResults(BaseModel):
+    did_extract: bool
+    extracted_fields: List[ExtractedField]

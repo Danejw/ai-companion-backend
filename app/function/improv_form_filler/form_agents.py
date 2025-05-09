@@ -1,14 +1,6 @@
-from typing import Any, List
-from pydantic import BaseModel, ConfigDict
 from agents import Agent
+from app.function.improv_form_filler.form_types import ExtractionResults
 
-class ExtractedField(BaseModel):
-    name: str
-    value: str
-
-class ExtractionResults(BaseModel):
-    did_extract: bool
-    extracted_fields: List[ExtractedField]
 
 extraction_agent = Agent(
     name="Extraction Agent",

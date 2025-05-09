@@ -4,7 +4,6 @@ from app.function.improv_form_filler.form_agents import extraction_agent, improv
 from app.function.improv_form_filler.form_types import ImprovForm, Message
 
 
-
 class FormOrchestration:
     def __init__(self, improv_form: ImprovForm):
         self.user_id = "user"
@@ -161,5 +160,3 @@ class FormOrchestration:
 
         print("Message string: ", message_string)
         return message_string
-
-
