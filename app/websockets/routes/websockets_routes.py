@@ -7,9 +7,9 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.supabase.profiles import ProfileRepository
 from app.utils.moderation import ModerationService
-from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_local_lingo, handle_orchestration, handle_personality, handle_text, handle_time
+from app.websockets.handlers.text_handlers import handle_audio, handle_feedback, handle_gps, handle_image, handle_improv, handle_local_lingo, handle_orchestration, handle_personality, handle_text, handle_time
 from app.websockets.orchestrate_contextual import build_user_profile
-from app.websockets.schemas.messages import Message, AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, PersonalityMessage, TextMessage, TimeMessage, OrchestrateMessage
+from app.websockets.schemas.messages import ImprovMessage, Message, AudioMessage, FeedbackMessage, GPSMessage, ImageMessage, LocalLingoMessage, PersonalityMessage, TextMessage, TimeMessage, OrchestrateMessage
 from pydantic import TypeAdapter, ValidationError
 
 router = APIRouter()
@@ -83,6 +83,9 @@ async def websocket_main(websocket: WebSocket, user_id: str = Depends(verify_tok
                 
                 case OrchestrateMessage():
                     await handle_orchestration(websocket, message, user_id)
+
+                case ImprovMessage():
+                    await handle_improv(websocket, user_id, message)
                     
                 
     except WebSocketDisconnect:

@@ -219,7 +219,7 @@ noelle_agent = Agent(
         )
     ],
     model_settings=settings,
-    mcp_servers=[care_mcp, connect_mcp],
+    #mcp_servers=[care_mcp, connect_mcp],
     #hooks=MyHooks(),
 )
 

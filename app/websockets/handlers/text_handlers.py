@@ -3,7 +3,7 @@ import asyncio
 import base64
 import os
 from agents import Agent, RunResultStreaming, Runner
-from app.function.improv_form_filler.form_orhestration import FormOrchestration, RequiredField
+from app.function.improv_form_filler.form_orhestration import FormOrchestration, ImprovForm, RequiredField
 from app.personal_agents import multistep_agent
 from fastapi import WebSocket
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ from app.supabase.profiles import ProfileRepository
 from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 from app.websockets.context.store import get_context_key, update_context
 from app.websockets.orchestrate_contextual import orchestration_websocket
-from app.websockets.schemas.messages import LocalLingoMessage, OrchestrateMessage, PersonalityMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
+from app.websockets.schemas.messages import ImprovMessage, LocalLingoMessage, OrchestrateMessage, PersonalityMessage, UIActionMessage, TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, FeedbackMessage
 
 
 from app.function.memory_extraction import MemoryExtractionService
@@ -118,82 +118,84 @@ async def handle_local_lingo(websocket: WebSocket, message: LocalLingoMessage, u
     update_context(user_id, "local_lingo", message.local_lingo)
 
 
-required_fields = [
-    RequiredField(name="user name", description="The name of the user", type=str),
-    RequiredField(name="user age", description="The age of the user", type=int),
-    RequiredField(name="user gender", description="The gender of the user", type=str),
-]
+improv_form = ImprovForm(
+    theme="Romantic Relationship",
+    intro="Since you opted into connect, let's begin by getting to know you're preferences better. Lets play a improv, I'll make up a scenerio and you can riff on it.",
+    outro="Thanks for playing! Here's what I got from you: ",
+    required_fields=[
+        RequiredField(name="user name", description="The name of the user", type=str),
+        RequiredField(name="user age", description="The age of the user", type=int),
+        RequiredField(name="user gender", description="The gender of the user", type=str),
+    ]
+)
 
-form_orchestration = FormOrchestration(required_fields)
+form_orchestration = FormOrchestration(improv_form)
 
 
-async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):    
-    await websocket.send_json({"type": "orchestration", "status": "processing"})
-    
-    user_input: str = get_context_key(user_id, "last_message")
-
-    data = await form_orchestration.extract_data(user_input)
-
-    response = await form_orchestration.run_improv(user_input)
-
+async def handle_improv(websocket: WebSocket, user_id: str, message: ImprovMessage = None):
+    await websocket.send_json({"type": "improv", "status": "improv ok"})
+    data = await form_orchestration.extract_data(message.user_input)
+    response = await form_orchestration.run_improv(message.user_input)
     await websocket.send_json({"type": "ai_response", "text": response})
-
-
-    # settings = get_context_key(user_id, "settings")
+    
+    update_context(user_id, "in_flow", True)
 
     
-    # # multistep_agent.service.user_id = user_id
-    # # result : RunResultStreaming = Runner.run_streamed(multistep_agent.multistep_agent, user_input)
+
+async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
+    await websocket.send_json({"type": "orchestration", "status": "processing"})
+
+    settings = get_context_key(user_id, "settings")
     
-    # result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
+    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=message.user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
-    # asyncio.create_task(handle_ui_action(websocket, message.user_input))
+    asyncio.create_task(handle_ui_action(websocket, message.user_input))
 
-    # async for event in result.stream_events():
-    #     if event.type == "raw_response_event":
-    #         continue
+    async for event in result.stream_events():
+        if event.type == "raw_response_event":
+            continue
 
-    #     elif event.type == "agent_updated_stream_event":
-    #         await websocket.send_json({
-    #             "type": "agent_updated",
-    #             "text": event.new_agent.name
-    #         })
+        elif event.type == "agent_updated_stream_event":
+            await websocket.send_json({
+                "type": "agent_updated",
+                "text": event.new_agent.name
+            })
 
-    #     elif event.type == "run_item_stream_event":
-    #         if event.item.type == "tool_call_item":
-    #             await websocket.send_json({
-    #                 "type": "tool_call_item",
-    #                 "text": event.item.raw_item.name
-    #             })
+        elif event.type == "run_item_stream_event":
+            if event.item.type == "tool_call_item":
+                await websocket.send_json({
+                    "type": "tool_call_item",
+                    "text": event.item.raw_item.name
+                })
 
-    #         elif event.item.type == "tool_call_output_item":
-    #             await websocket.send_json({
-    #                 "type": "tool_call_output_item",
-    #                 "text": event.item.output
-    #             })
+            elif event.item.type == "tool_call_output_item":
+                await websocket.send_json({
+                    "type": "tool_call_output_item",
+                    "text": event.item.output
+                })
 
-    #         elif event.item.type == "message_output_item":
-    #             #print("AI Response: ", event.item.raw_item.content[0].text)
-    #             await websocket.send_json({
-    #                 "type": "ai_response",
-    #                 "text":  event.item.raw_item.content[0].text
-    #             })
+            elif event.item.type == "message_output_item":
+                #print("AI Response: ", event.item.raw_item.content[0].text)
+                await websocket.send_json({
+                    "type": "ai_response",
+                    "text":  event.item.raw_item.content[0].text
+                })
                 
-    # final = result.final_output
-    # await websocket.send_json({"type": "ai_transcript", "text": final})
-    # await websocket.send_json({"type": "orchestration", "status": "done"})
+    final = result.final_output
+    await websocket.send_json({"type": "ai_transcript", "text": final})
+    await websocket.send_json({"type": "orchestration", "status": "done"})
         
-    # # TODO: change this to the actual agent name dynamically
-    # history = append_message_to_history(user_id, "Noelle", final)
+    # TODO: change this to the actual agent name dynamically
+    history = append_message_to_history(user_id, "Noelle", final)
 
-    # # Process the history and costs in the background
-    # asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
+    # Process the history and costs in the background
+    asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
     
-    # settings = get_context_key(user_id, "settings")
-    # if settings.type == "audio":
-    #     # send audio response
-    #     encoded_audio = await tts(final, settings.voice)
-    #     await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
+    settings = get_context_key(user_id, "settings")
+    if settings.type == "audio":
+        # send audio response
+        encoded_audio = await tts(final, settings.voice)
+        await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
 
 
 # Helpers
