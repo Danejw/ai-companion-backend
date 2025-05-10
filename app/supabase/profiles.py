@@ -430,10 +430,8 @@ class ProfileRepository:
         """
         try:
             response = self.supabase.table(self.table_name).select("is_pilot").eq("id", user_id).execute()
-            if response.data == True:
-                return True
-            else:
-                return False
+            
+            return response.data[0]["is_pilot"]
         except Exception as e:
             logging.error(f"Error getting user pilot for user_id: {user_id}: {e}")
             return False

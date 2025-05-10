@@ -37,6 +37,24 @@ async def get_user_credits_route(user_id=Depends(verify_token)):
         )
     return {"user_id": user_id, "credits": credits}
 
+@router.get("/credits_used")
+async def get_user_credits_used_route(user_id=Depends(verify_token)):
+    """1
+    Retrieves the credit balance for a specific user.
+    """
+
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    credits_used = repo.get_user_credits_used(user_id)
+    if credits_used is None:
+        # This could mean the user doesn't exist or an error occurred fetching credits
+        # The repository logs specific errors, here we return a generic not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find credits for user with id {user_id}"
+        )
+    return {"user_id": user_id, "credits_used": credits_used}
+
 
 @router.get("/profile")
 async def get_user_profile_route(user_id=Depends(verify_token)):
