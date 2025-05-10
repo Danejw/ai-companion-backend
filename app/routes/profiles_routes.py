@@ -143,5 +143,23 @@ async def get_pilot(user_id=Depends(verify_token)) -> bool:
     results = repo.get_user_pilot(user_id=user_id)
     return results
 
+@router.get("/get_user_unlocked_care")
+async def get_user_unlocked_care(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user has unlocked the care feature.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_unlocked_care(user_id=user_id)
+    return results
 
+@router.get("/get_user_unlocked_connect")
+async def get_user_unlocked_connect(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user has unlocked the connect feature.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_unlocked_connect(user_id=user_id)
+    return results
 

@@ -80,7 +80,7 @@ ui_action_agent = Agent(
     - toggle_settings
     - toggle_inoformation
     - toggle_capture
-    - toggle_notifications
+    - toggle_push_notification
     
     Example:
     User: "Show me the conversation history"
