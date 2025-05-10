@@ -23,6 +23,11 @@ class FormOrchestration:
     def get_missing_fields(self):
         return self.missing_fields
 
+    def reset(self):
+        self.context.clear_context(self.user_id)
+        self.missing_fields = self.improv_form.required_fields
+        self.in_flow = False
+
     async def extract_data(self, input: str):
 
         # add the last input in the history key of the context. history is a list of strings
@@ -116,6 +121,7 @@ class FormOrchestration:
 
                 reponse = await Runner.run(starting_agent=self.improv_agent, input=input)
                 result = f"{outro}\n\n{reponse.final_output}"
+
             else:
                 prompt = f""" 
                 The theme is: {self.improv_form.theme}

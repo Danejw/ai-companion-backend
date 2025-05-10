@@ -126,6 +126,11 @@ async def handle_improv(websocket: WebSocket, user_id: str, message: ImprovMessa
     response = await form_orchestration.run_improv(message.user_input)
     await websocket.send_json({"type": "ai_response", "text": response})
 
+    if form_orchestration.missing_fields == []:
+        # extract that summary into long term memory
+        knowledge = MemoryExtractionService(user_id)
+        await knowledge.extract_memory(response)
+
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
     if form_orchestration.in_flow:
