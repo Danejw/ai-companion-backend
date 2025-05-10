@@ -16,6 +16,9 @@ class UpdatePasswordRequest(BaseModel):
     token: str
 
 
+class UserPilotRequest(BaseModel):
+    is_pilot: bool
+
 @router.get("/credits")
 async def get_user_credits_route(user_id=Depends(verify_token)):
     """1
@@ -101,3 +104,26 @@ async def update_password(request: UpdatePasswordRequest):
             "success": False,
             "message": f"Error updating password: {e}"
         }
+
+@router.post("/set_user_pilot")
+async def set_user_pilot(request: UserPilotRequest, user_id=Depends(verify_token)):
+    """
+    Sets the user as a pilot or not.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.set_user_pilot(user_id=user_id, is_pilot=request.is_pilot)
+    return results
+
+@router.get("/get_user_pilot")
+async def get_pilot(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user is opted in to the pilot program.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_pilot(user_id=user_id)
+    return results
+
+
+

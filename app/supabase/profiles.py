@@ -413,6 +413,29 @@ class ProfileRepository:
                 "message": error_msg
             }
 
+    def set_user_pilot(self, user_id: str, is_pilot: bool) -> dict:
+        """
+        Sets the user as a pilot or not.
+        """
+        try:
+            response = self.supabase.table(self.table_name).update({"is_pilot": is_pilot}).eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error setting user as pilot for user_id: {user_id}: {e}")
+            return False
 
+    def get_user_pilot(self, user_id: str) -> bool:
+        """
+        Gets if the user is opted in to the pilot program.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("is_pilot").eq("id", user_id).execute()
+            if response.data == True:
+                return True
+            else:
+                return False
+        except Exception as e:
+            logging.error(f"Error getting user pilot for user_id: {user_id}: {e}")
+            return False
 
 
