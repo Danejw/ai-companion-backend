@@ -12,6 +12,7 @@ class FormOrchestration:
         self.missing_fields = improv_form.required_fields
         self.extraction_agent = extraction_agent
         self.improv_agent = improv_agent
+        self.in_flow = False
 
     def get_required_fields(self):
         return self.required_fields
@@ -66,20 +67,19 @@ class FormOrchestration:
                 
                 # Remove the field from missing_fields
                 self.missing_fields = [field for field in self.missing_fields if field.name != extracted_field.name]
+            
+        return result
 
-                print("Missing fields: ", self.missing_fields)
-
-        # if there are no missing fields, return True
-        if len(self.missing_fields) <= 0:
-            self.context.update_context(self.user_id, "did_fill_all_fields", True)
-            return {"did_fill_all_fields": True}
-        else:
-            self.context.update_context(self.user_id, "did_fill_all_fields", False)
-            return result
-        
     async def run_improv(self, input: str):
+        if self.missing_fields == []:
+            self.in_flow = False
+        else:
+            self.in_flow = True
+
+        print("In flow: ", self.in_flow)
+
         # if the history is 1 or less, add the intro
-        history: list[Message] = self.context.get_context_key(self.user_id, "history")
+        history: list[Message] = self.context.get_context_key(self.user_id, "history")  
 
         # if the history is 1 or less, add the intro    
         if len(history) <= 1 and self.improv_form.intro is not None:
@@ -87,14 +87,8 @@ class FormOrchestration:
             self.context.update_context(self.user_id, "history", history)
             return self.improv_form.intro
         else:
-            # get did fill all fields
-            did_fill_all_fields = self.context.get_context_key(self.user_id, "did_fill_all_fields")
-
-            print("Did fill all fields: ", did_fill_all_fields)
-
             prompt = ""
-            if did_fill_all_fields is not None and did_fill_all_fields == True:
-
+            if self.missing_fields == []:
                 # get the user's responses
                 extracted_fields = self.context.get_context_key(self.user_id, "extracted_fields")
 

@@ -3,10 +3,8 @@ import asyncio
 import base64
 import os
 from agents import Agent, RunResultStreaming, Runner
-from app.function.improv_form_filler.form_orhestration import FormOrchestration, ImprovForm, RequiredField
-from app.personal_agents import multistep_agent
+from app.function.improv_form_filler.form_orhestration import FormOrchestration
 from fastapi import WebSocket
-from pydantic import BaseModel
 from openai import AsyncOpenAI
 from app.supabase.conversation_history import Message, append_message_to_history, replace_conversation_history_with_summary
 from app.supabase.profiles import ProfileRepository
@@ -127,64 +125,66 @@ async def handle_improv(websocket: WebSocket, user_id: str, message: ImprovMessa
     data = await form_orchestration.extract_data(message.user_input)
     response = await form_orchestration.run_improv(message.user_input)
     await websocket.send_json({"type": "ai_response", "text": response})
-    
-    update_context(user_id, "in_flow", True)
 
 
 async def handle_orchestration(websocket: WebSocket, message: OrchestrateMessage, user_id: str):
-    await websocket.send_json({"type": "orchestration", "status": "processing"})
+    if form_orchestration.in_flow:
+        message = ImprovMessage(type="improv", improv_form_name=form_orchestration.improv_form.name, user_input=message.user_input)
+        await handle_improv(websocket=websocket, user_id=user_id, message=message)
+    else:
+        await websocket.send_json({"type": "orchestration", "status": "processing"})
 
-    settings = get_context_key(user_id, "settings")
-    
-    result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=message.user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
-
-    asyncio.create_task(handle_ui_action(websocket, message.user_input))
-
-    async for event in result.stream_events():
-        if event.type == "raw_response_event":
-            continue
-
-        elif event.type == "agent_updated_stream_event":
-            await websocket.send_json({
-                "type": "agent_updated",
-                "text": event.new_agent.name
-            })
-
-        elif event.type == "run_item_stream_event":
-            if event.item.type == "tool_call_item":
-                await websocket.send_json({
-                    "type": "tool_call_item",
-                    "text": event.item.raw_item.name
-                })
-
-            elif event.item.type == "tool_call_output_item":
-                await websocket.send_json({
-                    "type": "tool_call_output_item",
-                    "text": event.item.output
-                })
-
-            elif event.item.type == "message_output_item":
-                #print("AI Response: ", event.item.raw_item.content[0].text)
-                await websocket.send_json({
-                    "type": "ai_response",
-                    "text":  event.item.raw_item.content[0].text
-                })
-                
-    final = result.final_output
-    await websocket.send_json({"type": "ai_transcript", "text": final})
-    await websocket.send_json({"type": "orchestration", "status": "done"})
+        settings = get_context_key(user_id, "settings")
         
-    # TODO: change this to the actual agent name dynamically
-    history = append_message_to_history(user_id, "Noelle", final)
+        result : RunResultStreaming = await orchestration_websocket(user_id=user_id, user_input=message.user_input, websocket=websocket, extract=message.extract, summarize=message.summarize)
 
-    # Process the history and costs in the background
-    asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
-    
-    settings = get_context_key(user_id, "settings")
-    if settings.type == "audio":
-        # send audio response
-        encoded_audio = await tts(final, settings.voice)
-        await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
+        asyncio.create_task(handle_ui_action(websocket, message.user_input))
+
+        async for event in result.stream_events():
+            if event.type == "raw_response_event":
+                continue
+
+            elif event.type == "agent_updated_stream_event":
+                await websocket.send_json({
+                    "type": "agent_updated",
+                    "text": event.new_agent.name
+                })
+
+            elif event.type == "run_item_stream_event":
+                if event.item.type == "tool_call_item":
+                    await websocket.send_json({
+                        "type": "tool_call_item",
+                        "text": event.item.raw_item.name
+                    })
+
+                elif event.item.type == "tool_call_output_item":
+                    await websocket.send_json({
+                        "type": "tool_call_output_item",
+                        "text": event.item.output
+                    })
+
+                elif event.item.type == "message_output_item":
+                    #print("AI Response: ", event.item.raw_item.content[0].text)
+                    await websocket.send_json({
+                        "type": "ai_response",
+                        "text":  event.item.raw_item.content[0].text
+                    })
+                    
+        final = result.final_output
+        await websocket.send_json({"type": "ai_transcript", "text": final})
+        await websocket.send_json({"type": "orchestration", "status": "done"})
+            
+        # TODO: change this to the actual agent name dynamically
+        history = append_message_to_history(user_id, "Noelle", final)
+
+        # Process the history and costs in the background
+        asyncio.create_task(process_history(user_id, history, summarize=message.summarize, extract=message.extract))
+        
+        settings = get_context_key(user_id, "settings")
+        if settings.type == "audio":
+            # send audio response
+            encoded_audio = await tts(final, settings.voice)
+            await websocket.send_json({"type": "audio_response", "audio": encoded_audio})
 
 
 # Helpers
