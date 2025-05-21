@@ -1,6 +1,8 @@
 from pydantic import BaseModel
 from typing import Literal, Union, Optional, Dict
 
+from app.function.improv_form_filler.form_orhestration import ImprovForm
+
 
 # TEXT
 class TextMessage(BaseModel):
@@ -74,5 +76,11 @@ class OrchestrateMessage(BaseModel):
     extract: Optional[bool] = True
     summarize: Optional[int] = 10
 
+# IMPROV
+class ImprovMessage(BaseModel):
+    type: Literal["improv"]
+    improv_form_name: str
+    user_input: Optional[str] = None
+
 # UNIFIED MESSAGE TYPE
-Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, PersonalityMessage, LocalLingoMessage, FeedbackMessage, OrchestrateMessage]
+Message = Union[TextMessage, AudioMessage, ImageMessage, GPSMessage, TimeMessage, UIActionMessage, PersonalityMessage, LocalLingoMessage, FeedbackMessage, OrchestrateMessage, ImprovMessage]

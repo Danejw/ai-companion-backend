@@ -16,6 +16,9 @@ class UpdatePasswordRequest(BaseModel):
     token: str
 
 
+class UserPilotRequest(BaseModel):
+    is_pilot: bool
+
 @router.get("/credits")
 async def get_user_credits_route(user_id=Depends(verify_token)):
     """1
@@ -33,6 +36,24 @@ async def get_user_credits_route(user_id=Depends(verify_token)):
             detail=f"Could not find credits for user with id {user_id}"
         )
     return {"user_id": user_id, "credits": credits}
+
+@router.get("/credits_used")
+async def get_user_credits_used_route(user_id=Depends(verify_token)):
+    """1
+    Retrieves the credit balance for a specific user.
+    """
+
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    credits_used = repo.get_user_credits_used(user_id)
+    if credits_used is None:
+        # This could mean the user doesn't exist or an error occurred fetching credits
+        # The repository logs specific errors, here we return a generic not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Could not find credits for user with id {user_id}"
+        )
+    return {"user_id": user_id, "credits_used": credits_used}
 
 
 @router.get("/profile")
@@ -101,3 +122,44 @@ async def update_password(request: UpdatePasswordRequest):
             "success": False,
             "message": f"Error updating password: {e}"
         }
+
+@router.post("/set_user_pilot")
+async def set_user_pilot(request: UserPilotRequest, user_id=Depends(verify_token)):
+    """
+    Sets the user as a pilot or not.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.set_user_pilot(user_id=user_id, is_pilot=request.is_pilot)
+    return results
+
+@router.get("/get_user_pilot")
+async def get_pilot(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user is opted in to the pilot program.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_pilot(user_id=user_id)
+    return results
+
+@router.get("/get_user_unlocked_care")
+async def get_user_unlocked_care(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user has unlocked the care feature.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_unlocked_care(user_id=user_id)
+    return results
+
+@router.get("/get_user_unlocked_connect")
+async def get_user_unlocked_connect(user_id=Depends(verify_token)) -> bool:
+    """
+    Gets if the user has unlocked the connect feature.
+    """
+    user_id = user_id["id"]
+    repo = ProfileRepository()
+    results = repo.get_user_unlocked_connect(user_id=user_id)
+    return results
+

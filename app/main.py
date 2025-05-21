@@ -7,6 +7,7 @@ from app.websockets.routes.websockets_routes import router as ws_router
 
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
+
 from app.stripe.stripe_config import STRIPE_CONFIG
 
 
@@ -31,7 +32,7 @@ if ENV == "development":
     )
 else:
     ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS")
-    
+
     # Configure logging at the start of the file
     logging.basicConfig(
         level=logging.ERROR,
@@ -79,6 +80,9 @@ from app.routes.orchestration_route import router as orchestration_router
 from app.websockets.routes.websockets_routes import router as websockets_router
 from app.routes.push_notification_routes import router as push_notifcation_router
 from app.routes.finetune_feedback_routes import router as finetune_feedback_router
+from app.routes.connect_routes import router as connect_router
+from app.routes.phq4_routes import router as phq4_router
+
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -101,6 +105,8 @@ app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchest
 app.include_router(websockets_router, prefix="/ws", tags=["Websockets"])
 app.include_router(push_notifcation_router, prefix="/push", tags=["Push Notifications"])
 app.include_router(finetune_feedback_router, prefix="/finetune", tags=["Finetune Feedback"])
+app.include_router(connect_router, prefix="/connect", tags=["Connect"])
+app.include_router(phq4_router, prefix="/phq4", tags=["PHQ4"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
@@ -111,8 +117,6 @@ async def enforce_https(request: Request, call_next):
     if FORCE_HTTPS and request.url.scheme != "https":
         raise HTTPException(status_code=403, detail="HTTPS required")
     return await call_next(request)
-
-
 
 
 # Rate limiting
@@ -137,7 +141,7 @@ async def get_mbti(user_id: str = Depends(verify_token)):
     mbti_data = service.repository.get_mbti(user_id)
 
     if mbti_data:
-        return mbti_data.dict()
+        return mbti_data.model_dump()
     else:
         raise HTTPException(status_code=404, detail="No MBTI data found for this user")
     
@@ -148,7 +152,7 @@ async def get_ocean(user_id: str = Depends(verify_token)):
     ocean_data = service.repository.get_ocean(user_id)
 
     if ocean_data:
-        return ocean_data.dict()
+        return ocean_data.model_dump()
     else:
         raise HTTPException(status_code=404, detail="No OCEAN data found for this user")
 

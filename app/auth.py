@@ -5,6 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from jose import jwt, JWTError
 from app.utils.user_context import current_user_id
+import base64
 
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -15,7 +16,14 @@ SUPABASE_AUTH_URL = f"{SUPABASE_URL}/auth/v1/user"
 security = HTTPBearer()
 
 # Websocket
-SECRET_KEY = os.getenv("SUPABASE_JWT_SECRET") # match whatever you use for generating tokens
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
+if not SECRET_KEY:
+    raise ValueError("SECRET_KEY environment variable is not set")
+
+# If the key is base64 encoded, decode it
+if SECRET_KEY.startswith("base64:"):
+    SECRET_KEY = base64.b64decode(SECRET_KEY[7:])
+
 ALGORITHM = "HS256"  # or whatever you prefer
 
 

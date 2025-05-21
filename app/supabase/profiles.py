@@ -21,6 +21,9 @@ class Profile(BaseModel):
     location: Optional[str] = None
     gender: Optional[str] = None
     credits_used: Optional[int] = None
+    is_pilot: Optional[bool] = False
+    unlocked_care: Optional[bool] = False
+    unlocked_connect: Optional[bool] = False
 
 
 class ProfileRepository:
@@ -413,6 +416,48 @@ class ProfileRepository:
                 "message": error_msg
             }
 
+    def set_user_pilot(self, user_id: str, is_pilot: bool) -> dict:
+        """
+        Sets the user as a pilot or not.
+        """
+        try:
+            response = self.supabase.table(self.table_name).update({"is_pilot": is_pilot}).eq("id", user_id).execute()
+            return True
+        except Exception as e:
+            logging.error(f"Error setting user as pilot for user_id: {user_id}: {e}")
+            return False
 
+    def get_user_pilot(self, user_id: str) -> bool:
+        """
+        Gets if the user is opted in to the pilot program.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("is_pilot").eq("id", user_id).execute()
+            
+            return response.data[0]["is_pilot"]
+        except Exception as e:
+            logging.error(f"Error getting user pilot for user_id: {user_id}: {e}")
+            return False
 
+    def get_user_unlocked_care(self, user_id: str) -> bool:
+        """
+        Gets if the user has unlocked the care feature.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("unlocked_care").eq("id", user_id).execute()
+            return response.data[0]["unlocked_care"]
+        except Exception as e:
+            logging.error(f"Error getting user unlocked care for user_id: {user_id}: {e}")
+            return False
 
+    def get_user_unlocked_connect(self, user_id: str) -> bool:
+        """
+        Gets if the user has unlocked the care feature.
+        """
+        try:
+            response = self.supabase.table(self.table_name).select("unlocked_connect").eq("id", user_id).execute()
+            return response.data[0]["unlocked_connect"]
+        except Exception as e:
+            logging.error(f"Error getting user unlocked care for user_id: {user_id}: {e}")
+            return False
+        

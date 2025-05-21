@@ -19,6 +19,8 @@ from app.websockets.context.store import delete_context_key, get_context, get_co
 from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 from app.personal_agents.notification_agent import notification_agent
+from app.mcp.care import care_mcp
+from app.mcp.connect import connect_mcp
 
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
@@ -185,6 +187,7 @@ else:
         top_p=0.95
     )
 
+
 noelle_agent = Agent(
     name=agent_name,
     handoff_description="A conversational agent that leads the conversation with the user to get to know them better.",
@@ -216,6 +219,7 @@ noelle_agent = Agent(
         )
     ],
     model_settings=settings,
+    #mcp_servers=[care_mcp, connect_mcp],
     #hooks=MyHooks(),
 )
 
