@@ -1,4 +1,3 @@
-import textwrap
 import pytest
 
 from app.psychology import ocean_analysis

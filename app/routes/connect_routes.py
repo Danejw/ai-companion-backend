@@ -8,12 +8,11 @@ from app.auth import verify_token
 from app.function.memory_extraction import MemoryExtractionService
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.psychology.ocean_analysis import OceanAnalysisService
-from app.supabase.knowledge_edges import get_connected_memories, pretty_print_memories
+from app.supabase.knowledge_edges import get_connected_memories
 from app.supabase.profiles import ProfileRepository
 from app.utils.geocode import reverse_geocode
 from app.websockets.context.store import get_context
 
-from app.mcp.mcp.memory.agent import memory_agent
 
 # get connect server url from env
 environment = os.getenv("ENV", "development")
@@ -47,7 +46,7 @@ class ConnectProfile(BaseModel):
 profile_agent = Agent(
     name="Profile Agent",
     handoff_description="A profile agent that generates a user connect profile",
-    instructions=f"""
+    instructions="""
     You are a profile agent that generates a user connect profile based on what you know about the user.
     Use the user's current location for the location field.
 

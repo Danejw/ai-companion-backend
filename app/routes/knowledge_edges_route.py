@@ -1,11 +1,9 @@
 # app/routes/graph.py
-from fastapi import APIRouter, Depends
-from typing import List, Optional
+from fastapi import APIRouter
+from typing import Optional
 from uuid import UUID
 
-from app.auth import verify_token
-from app.function.memory_extraction import MemoryResponse
-from app.supabase.knowledge_edges import get_connected_memories, simplify_related_memories
+from app.supabase.knowledge_edges import get_connected_memories
 
 
 

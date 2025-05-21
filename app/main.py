@@ -8,7 +8,6 @@ from app.websockets.routes.websockets_routes import router as ws_router
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
 
-from app.stripe.stripe_config import STRIPE_CONFIG
 
 
 app = FastAPI()
@@ -67,7 +66,6 @@ from app.routes.knowledge_edges_route import router as knowledge_edges_router
 from app.routes.memory_extraction_routes import router as memory_extraction_router
 from app.stripe.subscription import router as stripe_router
 from app.routes.slang import router as slang_router
-from app.stripe.subscription import router as stripe_router
 from app.routes.moderation_check import router as moderation_router
 from app.routes.intent_classifier import router as intent_classifier_router
 from app.routes.theory_planned_behavior_route import router as theory_planned_behavior_router

@@ -1,8 +1,6 @@
-from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from pydantic import BaseModel
-from app.auth import verify_token
-from app.function.memory_extraction import MemoryExtractionService, MemoryResponse, MemoryMetadata
+from app.function.memory_extraction import MemoryExtractionService, MemoryMetadata
 from app.supabase.conversation_history import Message
 
 router = APIRouter()

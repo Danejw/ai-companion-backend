@@ -1,4 +1,3 @@
-import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl, AnyUrl
 from typing import Optional
@@ -87,7 +86,7 @@ async def is_safe(request: ContentModerationRequest) -> bool:
     try:
         is_safe = moderation_service.is_safe(request.text, request.image_url)
         return is_safe
-    except Exception as e:
+    except Exception:
         raise HTTPException(status_code=503, detail="Content moderation check failed. See server logs for details.")
 
 

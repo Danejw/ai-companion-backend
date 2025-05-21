@@ -7,7 +7,6 @@
 
 import asyncio
 from dataclasses import dataclass, field
-import logging
 from typing import List, Dict
 from agents import Agent, Runner
 

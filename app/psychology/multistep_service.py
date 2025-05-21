@@ -2,7 +2,7 @@ from typing import Literal, Optional, List
 from pydantic import BaseModel
 from agents import Agent, RunResultStreaming, Runner
 
-from app.websockets.context.store import delete_context_key, get_context_key, update_context
+from app.websockets.context.store import delete_context_key, update_context
 
 
 class FlowStep(BaseModel):

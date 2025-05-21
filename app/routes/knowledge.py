@@ -1,4 +1,3 @@
-import json
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.auth import verify_token

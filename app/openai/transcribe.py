@@ -2,7 +2,6 @@ import asyncio
 import logging
 import tempfile
 from fastapi import UploadFile
-from fastapi.responses import StreamingResponse
 from openai import OpenAI
 import os
 from openai import AsyncOpenAI

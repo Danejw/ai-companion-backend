@@ -1,5 +1,5 @@
 from app.supabase.supabase_mbti import MBTI
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from pydantic import BaseModel
 from app.auth import verify_token

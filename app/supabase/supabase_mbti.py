@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Optional
 from supabase import create_client, Client
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 logging.basicConfig(level=logging.INFO)
 
