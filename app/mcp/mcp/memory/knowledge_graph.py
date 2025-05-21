@@ -3,7 +3,8 @@
 from pathlib import Path
 import json
 import os
-from typing import List, Dict, Any, TypedDict
+from typing import List, Dict, Any
+from typing_extensions import TypedDict
 
 
 # Define types
