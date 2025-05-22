@@ -6,7 +6,6 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from uuid import UUID
 from supabase import create_client
-from uuid import UUID
 import datetime
 from app.utils.similarity import cosine_similarity
 

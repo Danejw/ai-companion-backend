@@ -1,5 +1,4 @@
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization
 import base64
 
 def to_base64url(data: bytes) -> str:

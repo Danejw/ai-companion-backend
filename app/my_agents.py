@@ -1,6 +1,5 @@
 import asyncio
 from agents import Agent, Runner, function_tool, WebSearchTool, FileSearchTool
-from pydantic import BaseModel
 
 from app.psychology.chinese_zodiac import get_chinese_zodiac
 from app.psychology.ocean_analysis import OceanResponse

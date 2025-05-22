@@ -1,7 +1,7 @@
 from agents import Agent
 from app.supabase.finetune_feedback import FeedbackMetadata
 
-instructions = f"""
+instructions = """
 Given an input, you will need to extract the tags and metadata from the input.
 
 Schema:

@@ -1,6 +1,6 @@
 from app.auth import verify_token
 from app.supabase.supabase_ocean import Ocean
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from app.psychology.ocean_analysis import OceanAnalysisService
 from app.supabase.conversation_history import Message

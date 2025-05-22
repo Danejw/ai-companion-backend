@@ -1,9 +1,7 @@
-import logging
 from fastapi import APIRouter, HTTPException, status
 from app.auth import verify_token
 from fastapi.params import Depends
 from app.supabase.pgvector import get_user_knowledge_vectors, get_user_slang_vectors, remove_user_knowledge, remove_user_slang
-from fastapi.responses import JSONResponse
 
 
 # Initialize the router

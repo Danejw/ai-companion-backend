@@ -8,7 +8,6 @@ from app.websockets.routes.websockets_routes import router as ws_router
 # Load environment variables first before importing STRIPE_CONFIG
 load_dotenv(override=True)
 
-from app.stripe.stripe_config import STRIPE_CONFIG
 
 
 app = FastAPI()
@@ -67,7 +66,6 @@ from app.routes.knowledge_edges_route import router as knowledge_edges_router
 from app.routes.memory_extraction_routes import router as memory_extraction_router
 from app.stripe.subscription import router as stripe_router
 from app.routes.slang import router as slang_router
-from app.stripe.subscription import router as stripe_router
 from app.routes.moderation_check import router as moderation_router
 from app.routes.intent_classifier import router as intent_classifier_router
 from app.routes.theory_planned_behavior_route import router as theory_planned_behavior_router
@@ -82,7 +80,7 @@ from app.routes.push_notification_routes import router as push_notifcation_route
 from app.routes.finetune_feedback_routes import router as finetune_feedback_router
 from app.routes.connect_routes import router as connect_router
 from app.routes.phq4_routes import router as phq4_router
-
+from app.routes.auth_routes import router as auth_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -107,6 +105,7 @@ app.include_router(push_notifcation_router, prefix="/push", tags=["Push Notifica
 app.include_router(finetune_feedback_router, prefix="/finetune", tags=["Finetune Feedback"])
 app.include_router(connect_router, prefix="/connect", tags=["Connect"])
 app.include_router(phq4_router, prefix="/phq4", tags=["PHQ4"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"

@@ -19,3 +19,26 @@ The application offers a personalized chat experience. It learns from the user's
 - `requirements.txt` – Python dependencies.
 
 Start by exploring `app/main.py` and the `routes` and `websockets` directories to see how incoming requests are processed.
+
+## Testing
+To ensure code quality and functionality, the project uses pytest for unit tests and Ruff for linting. Here are the key testing commands:
+
+### Running Tests
+```bash
+# Run all tests with minimal output
+pytest -q
+
+# Run tests with detailed output
+pytest
+```
+
+### Code Quality Checks
+```bash
+# Check code style and quality without making changes
+ruff check .
+
+# Automatically fix code style issues
+ruff check --fix .
+```
+
+Make sure to run these commands from the project root directory. The test suite should pass and code should be free of linting errors before submitting changes.

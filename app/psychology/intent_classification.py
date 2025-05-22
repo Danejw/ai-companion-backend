@@ -5,9 +5,8 @@
 "confidence score"
 
 import logging
-from typing import List, Optional
-from agents import Agent, Runner
 from typing import List
+from agents import Agent, Runner
 
 
 

@@ -214,7 +214,7 @@ async def analyze_image(image_data: list[str], image_message: str = "what's in t
                 
         return analysis
 
-    except Exception as e:
+    except Exception:
         return "Failed to analyze image"
 
 async def stt(audio_bytes: bytes) -> str:

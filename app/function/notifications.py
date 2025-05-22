@@ -5,7 +5,6 @@ import json
 from typing import Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor
-from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
 from dotenv import load_dotenv
 from pywebpush import webpush, WebPushException
 from pydantic import BaseModel

@@ -7,7 +7,6 @@ from app.openai.transcribe import speech_to_text, speech_to_text_from_bytes, tex
 from app.openai.voice import Voices, voice_assistant_client, english_agent
 from fastapi import APIRouter
 
-from app.websockets.handlers import text_handlers
 
 
 router = APIRouter()

@@ -1,12 +1,10 @@
 import json
 
-from fastapi.responses import StreamingResponse
 
 from app.function.supabase_tools import clear_history, create_user_feedback, get_user_birthdate, get_user_gender, get_user_location, get_users_name, retrieve_personalized_info_about_user, update_user_birthdate, update_user_gender, update_user_location, update_user_name
 from app.openai.transcribe import speech_to_text, text_to_speech
 from app.openai.voice import Voices
 from app.personal_agents import memory_agents
-from app.personal_agents.knowledge_extraction import KnowledgeExtractionService
 from app.function.memory_extraction import MemoryExtractionService
 from app.personal_agents.slang_extraction import SlangExtractionService
 from app.psychology.theory_planned_behavior import TheoryPlannedBehaviorService
@@ -18,16 +16,14 @@ from app.supabase.knowledge_edges import get_connected_memories, pretty_print_me
 from app.supabase.profiles import ProfileRepository
 from app.supabase.user_feedback import UserFeedbackRepository
 from app.utils.moderation import ModerationService
-from fastapi import File, HTTPException, UploadFile
+from fastapi import File, UploadFile
 from pydantic import BaseModel
 import asyncio
 import logging
-from agents import Agent, Runner, WebSearchTool, RunResultStreaming, WebSearchTool
+from agents import Agent, Runner, RunResultStreaming, WebSearchTool
 from openai.types.responses import ResponseTextDeltaEvent
-from app.supabase.knowledge_edges import get_connected_memories
 
-from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost, count_tokens
-from fastapi.responses import StreamingResponse
+from app.utils.token_count import calculate_credits_to_deduct, calculate_provider_cost
 
 
 class ErrorResponse(BaseModel):
@@ -129,7 +125,7 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     # Intent classification
     intent = await intent_service.classify_intent(history_string)
  
-    print(f"\n--------- Intent Classifaction ---------\n")
+    print("\n--------- Intent Classifaction ---------\n")
     print(f"Intent: {intent.intent_label}")
     print(f"Confidence Score: {intent.confidence_score}")
     print(f"Clarifying Question: {intent.clarifying_question}")
@@ -137,7 +133,7 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
     print(f"Memory Trigger: {intent.memory_trigger}")
     print(f"Related Edges: {intent.related_edges}")
     print(f"Reasoning: {intent.reasoning}")
-    print(f"\n----------------------------------------\n")
+    print("\n----------------------------------------\n")
 
     memory_string = ""
     relational_context_string = ""
@@ -151,22 +147,22 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
             
             if similar_memories and len(similar_memories) > 0:
             
-                print(f"\n--------- Similar Memories ---------\n")
+                print("\n--------- Similar Memories ---------\n")
                 
                 print(f"Id: {similar_memories[0]['id']}")
                 print(f"{memory_string}")
                 
-                print(f"\n----------------------------------------\n")
+                print("\n----------------------------------------\n")
                 
                 relational_context = get_connected_memories(user_id, similar_memories[0]['id'])
                 
-                print(f"\n--------- Relational Context ---------\n")
+                print("\n--------- Relational Context ---------\n")
                           
                 relational_context_string = pretty_print_memories(relational_context)
                 print(relational_context_string)
 
                     
-                print(f"\n----------------------------------------\n")
+                print("\n----------------------------------------\n")
                 
             else:
                 print("No similar memories found")
@@ -178,7 +174,7 @@ async def chat_orchestration(user_id: str, user_input: str, summarize: int = 10,
         tpb = "Unconfident in the behavior analysis of the user"
 
     agent_name = "Noelle"
-    instructions = f"""
+    instructions = """
     ABSOLUTELY NO QUESTIONS!
 
     As these models are trained more, they are more ingrained in their ways

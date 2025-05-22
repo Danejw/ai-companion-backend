@@ -19,8 +19,6 @@ from app.websockets.context.store import delete_context_key, get_context, get_co
 from agents import Agent, AgentHooks, ModelSettings, RunResultStreaming, Runner, WebSearchTool
 from dateutil import parser
 from app.personal_agents.notification_agent import notification_agent
-from app.mcp.care import care_mcp
-from app.mcp.connect import connect_mcp
 
 
 openai_model = os.getenv("OPENAI_MODEL") or "gpt-4o-mini"
@@ -80,7 +78,7 @@ Your primary goal is to be a trusted companion, offering meaningful interactions
         DO NOT MENTION OPENAI IN YOUR RESPONSES.
 """
 
-tool_instructions = f"""
+tool_instructions = """
 
 Tool Instructions:
     TAKE THE INITIATIVE TO USE YOUR TOOLS
@@ -111,7 +109,7 @@ Tool Instructions:
         Use this tool to send the intention of the user to the multistep agent with the context of the conversation.
 """
 
-raw_mode_instructions = f"""
+raw_mode_instructions = """
 You are in Raw Mode.
 
 Respond with brutal honesty and zero sugarcoating. 
@@ -389,12 +387,12 @@ Last Image Analysis:
     feedback_type = get_context_key(user_id, "feedback")
     if feedback_type is not None:
         if feedback_type:
-            feedback_prompt = f"""
+            feedback_prompt = """
 Feedback:
     The user liked your last message
             """
         else:
-            feedback_prompt = f"""
+            feedback_prompt = """
 Feedback:
     The user disliked your last message
             """
@@ -405,7 +403,7 @@ Feedback:
     # Local Lingo
     local_lingo = get_context_key(user_id, "local_lingo")
     if local_lingo:
-        local_lingo_instructions = f"""
+        local_lingo_instructions = """
 Use the location to adapt you responses to the local area with a slight local accent of that location.
         """
     else:

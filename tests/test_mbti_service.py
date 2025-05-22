@@ -2,7 +2,6 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-import pytest
 from app.psychology.mbti_analysis import MBTIAnalysisService
 from app.supabase.supabase_mbti import MBTI
 

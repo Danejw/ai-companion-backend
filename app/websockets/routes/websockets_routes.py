@@ -1,8 +1,6 @@
 import os
-from agents import Agent, ItemHelpers, Runner, function_tool
 from app.auth import verify_token_websocket
 from openai import AsyncOpenAI
-import base64
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from app.supabase.profiles import ProfileRepository
