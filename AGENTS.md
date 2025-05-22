@@ -30,9 +30,6 @@ pytest -q
 
 # Run tests with detailed output
 pytest
-
-# Run specific test file
-pytest path/to/test_file.py
 ```
 
 ### Code Quality Checks

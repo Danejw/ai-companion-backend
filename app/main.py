@@ -80,7 +80,7 @@ from app.routes.push_notification_routes import router as push_notifcation_route
 from app.routes.finetune_feedback_routes import router as finetune_feedback_router
 from app.routes.connect_routes import router as connect_router
 from app.routes.phq4_routes import router as phq4_router
-
+from app.routes.auth_routes import router as auth_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -105,6 +105,7 @@ app.include_router(push_notifcation_router, prefix="/push", tags=["Push Notifica
 app.include_router(finetune_feedback_router, prefix="/finetune", tags=["Finetune Feedback"])
 app.include_router(connect_router, prefix="/connect", tags=["Connect"])
 app.include_router(phq4_router, prefix="/phq4", tags=["PHQ4"])
+app.include_router(auth_router, prefix="/auth", tags=["Auth"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
