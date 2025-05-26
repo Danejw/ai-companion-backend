@@ -81,6 +81,7 @@ from app.routes.finetune_feedback_routes import router as finetune_feedback_rout
 from app.routes.connect_routes import router as connect_router
 from app.routes.phq4_routes import router as phq4_router
 from app.routes.auth_routes import router as auth_router
+from app.routes.multistep_routes import router as multistep_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -97,6 +98,7 @@ app.include_router(profiles_router, prefix="/profiles", tags=["Profiles"])
 app.include_router(conversation_router, prefix="/conversations", tags=["Conversations"])
 app.include_router(vector_router, prefix="/vectors", tags=["Vectors"])
 app.include_router(memory_extraction_router, prefix="/vectors", tags=["Vectors"])
+app.include_router(multistep_router, prefix="/multistep", tags=["Multistep"])
 app.include_router(feedback_router, prefix="/feedback", tags=["Feedback"])
 app.include_router(voice_router, prefix="/voice", tags=["Voice"])
 app.include_router(orchestration_router, prefix="/orchestration", tags=["Orchestration"])
