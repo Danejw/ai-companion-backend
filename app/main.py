@@ -81,6 +81,7 @@ from app.routes.finetune_feedback_routes import router as finetune_feedback_rout
 from app.routes.connect_routes import router as connect_router
 from app.routes.phq4_routes import router as phq4_router
 from app.routes.auth_routes import router as auth_router
+from app.routes.onboarding_routes import router as onboarding_router
 
 app.include_router(health_check_router)
 app.include_router(realtime_router)
@@ -106,6 +107,7 @@ app.include_router(finetune_feedback_router, prefix="/finetune", tags=["Finetune
 app.include_router(connect_router, prefix="/connect", tags=["Connect"])
 app.include_router(phq4_router, prefix="/phq4", tags=["PHQ4"])
 app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+app.include_router(onboarding_router, tags=["Onboarding"])
 
 # Force HTTPS connections in production
 FORCE_HTTPS = os.getenv("FORCE_HTTPS", "False").lower() == "true"
